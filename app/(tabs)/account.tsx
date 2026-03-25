@@ -1,27 +1,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter, useFocusEffect } from "expo-router";
-import { useCallback } from "react";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import { BASE_URL } from "../../constants/Config";
 import {
   KColors as Colors,
   Radius,
   Shadow,
   Spacing,
 } from "../../constants/kaamsetuTheme";
-import { completedJobHistory, myRequests } from "../../constants/mockData";
-import { Image } from "react-native";
 import { myApplications, referrals } from "../../constants/mockData";
 
 const API_URL = "http://172.27.16.252:8000";
@@ -126,8 +122,6 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-
-
 type UserType = {
   _id: string;
   name: string;
@@ -136,8 +130,7 @@ type UserType = {
   address?: string;
   skills?: string[];
   rating?: number;
-    profileImage?: string; // 🔥 ADD THIS
-
+  profileImage?: string; // 🔥 ADD THIS
 };
 
 type JobType = {
@@ -177,7 +170,7 @@ export default function AccountScreen() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       const requestsData = await requestsRes.json();
@@ -194,18 +187,18 @@ export default function AccountScreen() {
       setLoading(false);
     }
   };
- // ✅ REPLACE WITH THIS
-useFocusEffect(
-  useCallback(() => {
-    const loadUser = async () => {
-      const storedUser = await AsyncStorage.getItem("user");
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      }
-    };
-    loadUser();
-  }, [])
-);
+  // ✅ REPLACE WITH THIS
+  useFocusEffect(
+    useCallback(() => {
+      const loadUser = async () => {
+        const storedUser = await AsyncStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      };
+      loadUser();
+    }, []),
+  );
   // if (!user) return null;
 
   useEffect(() => {
@@ -240,54 +233,53 @@ useFocusEffect(
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.profileCard}>
-<View style={styles.profileTop}>
-  <Avatar
-    name={user?.name || "User"}
-    profileImage={user?.profileImage}
-    size={72}
-  />
+          <View style={styles.profileTop}>
+            <Avatar
+              name={user?.name || "User"}
+              profileImage={user?.profileImage}
+              size={72}
+            />
 
-  <View style={styles.profileInfo}>
-    <View style={styles.profileNameRow}>
-      <Text style={styles.profileName}>
-        {user?.name || "Loading..."}
-      </Text>
+            <View style={styles.profileInfo}>
+              <View style={styles.profileNameRow}>
+                <Text style={styles.profileName}>
+                  {user?.name || "Loading..."}
+                </Text>
 
-      <TouchableOpacity
-        onPress={() => router.push("/update-profile")}
-        style={styles.editIcon}
-      >
-        <Text style={styles.editIconText}>✏️</Text>
-      </TouchableOpacity>
-    </View>
+                <TouchableOpacity
+                  onPress={() => router.push("/update-profile")}
+                  style={styles.editIcon}
+                >
+                  <Text style={styles.editIconText}>✏️</Text>
+                </TouchableOpacity>
+              </View>
 
-    <StarRating rating={user?.rating || 0} />
+              <StarRating rating={user?.rating || 0} />
 
-    {/* Skills */}
-    {user?.skills && user.skills.length > 0 && (
-      <View style={styles.tagsRow}>
-        {user.skills.map((tag) => (
-          <View key={tag} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
+              {/* Skills */}
+              {user?.skills && user.skills.length > 0 && (
+                <View style={styles.tagsRow}>
+                  {user.skills.map((tag) => (
+                    <View key={tag} style={styles.tag}>
+                      <Text style={styles.tagText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Extra details (from other branch) */}
+              <Text style={styles.profileText}>
+                Email: {user?.email || "-"}
+              </Text>
+              <Text style={styles.profileText}>
+                Phone: {user?.phone || "-"}
+              </Text>
+              <Text style={styles.profileText}>
+                Address: {user?.address?.trim() ? user.address : "-"}
+              </Text>
+            </View>
           </View>
-        ))}
-      </View>
-    )}
 
-    {/* Extra details (from other branch) */}
-    <Text style={styles.profileText}>
-      Email: {user?.email || "-"}
-    </Text>
-    <Text style={styles.profileText}>
-      Phone: {user?.phone || "-"}
-    </Text>
-    <Text style={styles.profileText}>
-      Address: {user?.address?.trim() ? user.address : "-"}
-    </Text>
-
-  </View>
-</View>
-          
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={handleUpdateProfile}
@@ -296,7 +288,9 @@ useFocusEffect(
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => router.push("/job-chat?chatId=69c39b7dcf8d1328e3f5ffd1")}
+            onPress={() =>
+              router.push("/job-chat?chatId=69c39b7dcf8d1328e3f5ffd1")
+            }
             style={styles.testChatBtn}
           >
             <Text style={styles.testChatBtnText}>Open Test Chat</Text>
@@ -346,7 +340,10 @@ useFocusEffect(
             <Text style={styles.emptyText}>No applications found.</Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.quickCard} onPress={handleOpenApplications}>
+          <TouchableOpacity
+            style={styles.quickCard}
+            onPress={handleOpenApplications}
+          >
             <Text style={styles.quickCardTitle}>Applications</Text>
             <Text style={styles.quickCardSub}>
               {myApplications.length} application(s) available
@@ -361,7 +358,10 @@ useFocusEffect(
             <Text style={styles.emptyText}>No referrals found.</Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.quickCard} onPress={handleOpenReferrals}>
+          <TouchableOpacity
+            style={styles.quickCard}
+            onPress={handleOpenReferrals}
+          >
             <Text style={styles.quickCardTitle}>Referrals</Text>
             <Text style={styles.quickCardSub}>
               {referrals.length} referral item(s) available
@@ -514,4 +514,94 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: "700",
   },
+  avatar: {
+  backgroundColor: Colors.primary,
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+avatarText: {
+  color: "#fff",
+  fontWeight: "bold",
+},
+
+starsRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginTop: 4,
+},
+
+ratingText: {
+  marginLeft: 5,
+  fontSize: 12,
+  color: Colors.textSecondary,
+},
+
+profileTop: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+profileInfo: {
+  marginLeft: 12,
+  flex: 1,
+},
+
+profileNameRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+},
+
+editIcon: {
+  marginLeft: 8,
+},
+
+editIconText: {
+  fontSize: 16,
+},
+
+tagsRow: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  marginTop: 5,
+},
+
+tag: {
+  backgroundColor: Colors.primary,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 8,
+  marginRight: 5,
+  marginTop: 5,
+},
+
+tagText: {
+  color: "#fff",
+  fontSize: 12,
+},
+
+sectionHeaderRow: {
+  flexDirection: "row",
+  alignItems: "center",
+},
+
+sectionAccent: {
+  width: 4,
+  height: 16,
+  backgroundColor: Colors.primary,
+  marginRight: 6,
+  },
+badge: {
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+  borderRadius: 12,
+  alignSelf: "flex-start",
+  marginTop: 6,
+},
+
+badgeText: {
+  fontSize: 12,
+  fontWeight: "600",
+},
 });
