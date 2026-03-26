@@ -14,6 +14,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+
 } from "react-native";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -213,27 +214,60 @@ export default function LiveJobsScreen() {
   // Falls back to DUMMY_JOBS if server is unreachable
   // ─────────────────────────────────────────────────────────────────────────
   const fetchJobs = useCallback(async () => {
-    try {
-      const t = await AsyncStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/jobs`, {
-        headers: { Authorization: `Bearer ${t}` },
-      });
+  try {
+    const t = await AsyncStorage.getItem("token");
 
-      if (res.ok) {
-        const data = await res.json();
-        // Backend may return { jobs: [...] } or just [...]
-        setJobs(Array.isArray(data) ? data : data.jobs || DUMMY_JOBS);
-      } else {
-        setJobs(DUMMY_JOBS);
-      }
-    } catch {
-      // Server not reachable → show dummy data so UI works
-      setJobs(DUMMY_JOBS);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    const res = await fetch(`${BASE_URL}/jobs`, {
+      headers: {
+        Authorization: `Bearer ${t}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json();
+
+    console.log("API RESPONSE:", data); // 🔥 DEBUG
+
+    if (res.ok) {
+      // ✅ STRICT handling
+     if (Array.isArray(data)) {
+  const formatted = data.map((job) => ({
+    ...job,
+
+    // ✅ FIX BUDGET
+    budgetMin: job.minBudget,
+    budgetMax: job.maxBudget,
+    isNegotiable: job.noBudget,
+
+    // ✅ FIX SCHEDULE
+    schedule: new Date(job.startDate).toLocaleString("en-IN", {
+  day: "numeric",
+  month: "short",
+  hour: "numeric",
+  minute: "2-digit",
+}),
+
+    // ✅ TEMP FIELDS
+    postedBy: { name: "User" },
+    rating: 4,
+  }));
+
+  setJobs(formatted);
+} else {
+  setJobs([]);
+}
+    } else {
+      console.log("Server error:", data);
+      setJobs([]);
     }
-  }, []);
+  } catch (error) {
+    console.log("Fetch error:", error);
+    setJobs([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchJobs();
@@ -304,56 +338,22 @@ export default function LiveJobsScreen() {
   //   ]);
   // };
 
-  const handleApply = (jobId: string) => {
+  const handleApply = async (jobId: string) => {
     // 🔁 IF ALREADY APPLIED → ASK TO CANCEL
-    if (appliedJobs.includes(jobId)) {
-      Alert.alert(
-        "Cancel Application",
-        "Do you want to cancel your application?",
-        [
-          { text: "No", style: "cancel" },
-          {
-            text: "Yes",
-            onPress: async () => {
-              try {
-                // 🔥 backend cancel API (if exists)
-                await fetch(`${BASE_URL}/jobs/${jobId}/cancel`, {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                  },
-                });
+   if (appliedJobs.includes(jobId)) {
+  const updated = appliedJobs.filter((id) => id !== jobId);
 
-                // ✅ REMOVE FROM STATE
-                const updated = appliedJobs.filter((id) => id !== jobId);
-                setAppliedJobs(updated);
+  setAppliedJobs(updated);
 
-                await AsyncStorage.setItem(
-                  "appliedJobs",
-                  JSON.stringify(updated),
-                );
+  await AsyncStorage.setItem(
+    "appliedJobs",
+    JSON.stringify(updated),
+  );
 
-                Alert.alert("❌ Cancelled", "Application removed");
-              } catch {
-                // fallback
-                const updated = appliedJobs.filter((id) => id !== jobId);
-                setAppliedJobs(updated);
+  Alert.alert("Cancelled", "Application removed");
 
-                await AsyncStorage.setItem(
-                  "appliedJobs",
-                  JSON.stringify(updated),
-                );
-
-                Alert.alert("❌ Cancelled", "Removed locally");
-              }
-            },
-          },
-        ],
-      );
-
-      return;
-    }
+  return;
+}
 
     // 🟢 NOT APPLIED → ASK TO APPLY
     Alert.alert("Apply for Job", "Are you sure you want to apply?", [
@@ -603,26 +603,23 @@ export default function LiveJobsScreen() {
                   appliedJobs.includes(job._id) && styles.btnApplied,
                 ]}
                 onPress={async () => {
-                  // ✅ if already applied → cancel directly
-                  if (appliedJobs.includes(job._id)) {
-                    const updated = appliedJobs.filter((id) => id !== job._id);
+  if (appliedJobs.includes(job._id)) {
+    const updated = appliedJobs.filter((id) => id !== job._id);
 
-                    setAppliedJobs(updated);
+    setAppliedJobs(updated);
 
-                    await AsyncStorage.setItem(
-                      "appliedJobs",
-                      JSON.stringify(updated),
-                    );
+    await AsyncStorage.setItem(
+      "appliedJobs",
+      JSON.stringify(updated),
+    );
 
-                    Alert.alert("Cancelled", "Application removed");
+    Alert.alert("Cancelled", "Application removed");
+    return;
+  }
 
-                    return;
-                  }
-
-                  // ✅ not applied → open modal
-                  setApplyJobId(job._id);
-                  setApplyModal(true);
-                }}
+  setApplyJobId(job._id);
+  setApplyModal(true);
+}}
               >
                 <Text style={styles.btnText}>
                   {appliedJobs.includes(job._id) ? "Applied" : "Apply Now"}
@@ -908,18 +905,42 @@ export default function LiveJobsScreen() {
                   }
 
                   // ✅ apply
-                  const updated = [...appliedJobs, applyJobId];
+                  try {
+  const res = await fetch(`${BASE_URL}/applications/apply`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      jobId: applyJobId,
+      expectedPay: Number(expectedPay),
+      preferredTime,
+      remarks,
+    }),
+  });
 
-                  setAppliedJobs(updated);
+  const data = await res.json();
 
-                  await AsyncStorage.setItem(
-                    "appliedJobs",
-                    JSON.stringify(updated),
-                  );
+  if (res.ok) {
+    const updated = [...appliedJobs, applyJobId!];
+    setAppliedJobs(updated);
 
-                  setApplyModal(false);
+    await AsyncStorage.setItem(
+      "appliedJobs",
+      JSON.stringify(updated),
+    );
 
-                  Alert.alert("Applied", "Application submitted");
+    setApplyModal(false);
+
+    Alert.alert("✅ Applied", "Application submitted successfully");
+  } else {
+    Alert.alert("Error", data.message || "Failed to apply");
+  }
+} catch (err) {
+  console.log(err);
+  Alert.alert("Error", "Something went wrong");
+}
                 }}
               >
                 <Text style={styles.submitBtnText}>Submit Application</Text>

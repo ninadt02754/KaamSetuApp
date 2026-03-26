@@ -19,7 +19,7 @@ import {
   Shadow,
   Spacing,
 } from "../../constants/kaamsetuTheme";
-import { myApplications, referrals } from "../../constants/mockData";
+import { referrals } from "../../constants/mockData";
 
 const API_URL = "http://172.27.16.252:8030";
 
@@ -151,6 +151,7 @@ export default function AccountScreen() {
   const [user, setUser] = useState<UserType | null>(null);
   const [myRequests, setMyRequests] = useState<JobType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [myApplications, setMyApplications] = useState<any[]>([]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -184,6 +185,14 @@ export default function AccountScreen() {
           },
         },
       );
+
+      const appsRes = await fetch(`${API_URL}/api/applications/my-applications`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+const appsData = await appsRes.json();
+if (appsRes.ok) {
+  setMyApplications(appsData.applications || []);
+}
 
       const requestsData = await requestsRes.json();
 
@@ -341,21 +350,24 @@ export default function AccountScreen() {
 
         <Text style={styles.sectionTitle}>My Applications</Text>
 
-        {myApplications.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No applications found.</Text>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.quickCard}
-            onPress={handleOpenApplications}
-          >
-            <Text style={styles.quickCardTitle}>Applications</Text>
-            <Text style={styles.quickCardSub}>
-              {myApplications.length} application(s) available
-            </Text>
-          </TouchableOpacity>
-        )}
+        <Text style={styles.sectionTitle}>My Applications</Text>
+
+{myApplications.length === 0 ? (
+  <View style={styles.emptyCard}>
+    <Text style={styles.emptyText}>No applications found.</Text>
+  </View>
+) : (
+  myApplications.map((app) => (
+    <View key={app._id} style={styles.requestCard}>
+      <Text style={styles.requestTitle}>{app.jobId?.category}</Text>
+      <Text style={styles.requestSub}>Status: {app.status}</Text>
+      <Text style={styles.requestSub}>Expected Pay: ₹{app.expectedPay}</Text>
+      <Text style={styles.requestSub}>
+        Applied: {new Date(app.createdAt).toLocaleDateString()}
+      </Text>
+    </View>
+  ))
+)}
 
         <Text style={styles.sectionTitle}>Referrals</Text>
 

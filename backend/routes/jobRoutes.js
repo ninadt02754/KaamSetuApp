@@ -2,6 +2,15 @@ import express from "express";
 import Job from "../models/Job.js"; // ✅ Remember the .js extension!
 const router = express.Router();
 
+router.get("/", async (req, res) => {
+  try {
+    const jobs = await Job.find();   // 🔥 fetch from DB
+    res.json(jobs);                  // return jobs
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // 🚀 Route to create a job
 router.post("/create", async (req, res) => {
   try {
@@ -20,6 +29,18 @@ router.get("/my-requests/:userId", async (req, res) => {
       createdAt: -1,
     });
     res.json(jobs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// 🌍 Route to get ALL live jobs
+router.get("/jobs", async (req, res) => {
+  try {
+    const jobs = await Job.find()
+      .sort({ createdAt: -1 });
+
+    res.json({ jobs }); // ✅ IMPORTANT FORMAT
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
