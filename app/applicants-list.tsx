@@ -41,12 +41,12 @@ export default function ApplicationListScreen() {
       }
 
       const res = await fetch(
-        `http://172.27.16.252:8000/api/applications/job/${jobId}`,
+        `http://172.27.16.252:8030/api/applications/job/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       const data = await res.json();
@@ -75,7 +75,7 @@ export default function ApplicationListScreen() {
         style={styles.card}
         onPress={() =>
           router.push(
-            `/worker-profile?workerId=${item.workerId}&jobId=${jobId}&applicationId=${item._id}`
+            `/worker-profile?workerId=${item.workerId}&jobId=${jobId}&applicationId=${item._id}`,
           )
         }
       >

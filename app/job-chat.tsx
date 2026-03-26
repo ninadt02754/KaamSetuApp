@@ -56,12 +56,12 @@ export default function JobChatScreen() {
       }
 
       const res = await fetch(
-        `http://172.27.16.252:8000/api/chat/${chatId}/messages`,
+        `http://172.27.16.252:8030/api/chat/${chatId}/messages`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       const data = await res.json();
@@ -97,7 +97,7 @@ export default function JobChatScreen() {
       }
 
       const res = await fetch(
-        `http://172.27.16.252:8000/api/chat/${chatId}/send`,
+        `http://172.27.16.252:8030/api/chat/${chatId}/send`,
         {
           method: "POST",
           headers: {
@@ -107,7 +107,7 @@ export default function JobChatScreen() {
           body: JSON.stringify({
             content: input.trim(),
           }),
-        }
+        },
       );
 
       const data = await res.json();

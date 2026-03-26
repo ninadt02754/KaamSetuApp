@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { RefreshControl } from "react-native";
 import {
   ActivityIndicator,
   Image,
@@ -10,7 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import {
   KColors as Colors,
@@ -20,7 +21,7 @@ import {
 } from "../../constants/kaamsetuTheme";
 import { myApplications, referrals } from "../../constants/mockData";
 
-const API_URL = "http://172.27.16.252:8000";
+const API_URL = "http://172.27.16.252:8030";
 
 // ─── Reusable Components ────────────────────────────────────────────────────
 
@@ -146,12 +147,23 @@ type JobType = {
 
 export default function AccountScreen() {
   const router = useRouter();
-
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [myRequests, setMyRequests] = useState<JobType[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    await loadAccountData();
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500); // smooth feel
+  };
+  
   const loadAccountData = async () => {
+  setLoading(true); // 🔥 ADD THIS
     try {
       const token = await AsyncStorage.getItem("token");
       const userString = await AsyncStorage.getItem("user");
@@ -188,22 +200,18 @@ export default function AccountScreen() {
     }
   };
   // ✅ REPLACE WITH THIS
-  useFocusEffect(
-    useCallback(() => {
-      const loadUser = async () => {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      };
-      loadUser();
-    }, []),
-  );
+    useFocusEffect(
+      useCallback(() => {
+        onRefresh();
+
+        return () => {
+          // optional cleanup (safe)
+        };
+      }, [])
+    );
   // if (!user) return null;
 
-  useEffect(() => {
-    loadAccountData();
-  }, []);
+
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
@@ -231,7 +239,12 @@ export default function AccountScreen() {
         <Text style={styles.headerTitle}>Account</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+                  contentContainerStyle={styles.scrollContent}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  }
+                >
         <View style={styles.profileCard}>
           <View style={styles.profileTop}>
             <Avatar
@@ -287,14 +300,7 @@ export default function AccountScreen() {
             <Text style={styles.primaryBtnText}>Update Profile</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/job-chat?chatId=69c39b7dcf8d1328e3f5ffd1")
-            }
-            style={styles.testChatBtn}
-          >
-            <Text style={styles.testChatBtnText}>Open Test Chat</Text>
-          </TouchableOpacity>
+          
         </View>
 
         <Text style={styles.sectionTitle}>My Requests (Current)</Text>
@@ -515,93 +521,93 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   avatar: {
-  backgroundColor: Colors.primary,
-  justifyContent: "center",
-  alignItems: "center",
-},
-
-avatarText: {
-  color: "#fff",
-  fontWeight: "bold",
-},
-
-starsRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginTop: 4,
-},
-
-ratingText: {
-  marginLeft: 5,
-  fontSize: 12,
-  color: Colors.textSecondary,
-},
-
-profileTop: {
-  flexDirection: "row",
-  alignItems: "center",
-},
-
-profileInfo: {
-  marginLeft: 12,
-  flex: 1,
-},
-
-profileNameRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-},
-
-editIcon: {
-  marginLeft: 8,
-},
-
-editIconText: {
-  fontSize: 16,
-},
-
-tagsRow: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  marginTop: 5,
-},
-
-tag: {
-  backgroundColor: Colors.primary,
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-  borderRadius: 8,
-  marginRight: 5,
-  marginTop: 5,
-},
-
-tagText: {
-  color: "#fff",
-  fontSize: 12,
-},
-
-sectionHeaderRow: {
-  flexDirection: "row",
-  alignItems: "center",
-},
-
-sectionAccent: {
-  width: 4,
-  height: 16,
-  backgroundColor: Colors.primary,
-  marginRight: 6,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
-badge: {
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 12,
-  alignSelf: "flex-start",
-  marginTop: 6,
-},
 
-badgeText: {
-  fontSize: 12,
-  fontWeight: "600",
-},
+  avatarText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  starsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+
+  ratingText: {
+    marginLeft: 5,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+
+  profileTop: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  profileInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+
+  profileNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  editIcon: {
+    marginLeft: 8,
+  },
+
+  editIconText: {
+    fontSize: 16,
+  },
+
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 5,
+  },
+
+  tag: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginRight: 5,
+    marginTop: 5,
+  },
+
+  tagText: {
+    color: "#fff",
+    fontSize: 12,
+  },
+
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  sectionAccent: {
+    width: 4,
+    height: 16,
+    backgroundColor: Colors.primary,
+    marginRight: 6,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: "flex-start",
+    marginTop: 6,
+  },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
 });

@@ -4,11 +4,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function HomeScreen() {
@@ -49,7 +49,7 @@ export default function HomeScreen() {
     try {
       setError("");
 
-      const res = await fetch("http://172.27.16.252:8000/api/auth/login", {
+      const res = await fetch("http://172.27.16.252:8030/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
