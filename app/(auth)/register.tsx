@@ -14,10 +14,12 @@ import {
 } from "react-native";
 
 export default function Register() {
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [isWorker, setIsWorker] = useState(false);
   const [role, setRole] = useState("user");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const parts = email.split("@");
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -86,12 +88,12 @@ export default function Register() {
   // OTP
   const handleSendOTP = async () => {
     try {
-      if (!email.includes("@")) {
-        setError("Enter valid email");
-        return;
-      }
-
-      const res = await fetch("http://172.24.202.171:8000/api/auth/send-otp", {
+    if (parts.length !== 2 || !parts[1].includes(".")) {
+      setError("Enter valid email with domain");
+      return;
+    }
+    setSendingOtp(true); // 🔥 START LOADING
+      const res = await fetch("http://172.27.16.252:8030/api/auth/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,6 +114,8 @@ export default function Register() {
     } catch (err) {
       console.log(err);
       setError("Error sending OTP");
+    } finally {
+      setSendingOtp(false); // 🔥 STOP LOADING
     }
   };
 
@@ -127,6 +131,11 @@ export default function Register() {
         return;
       }
 
+      if (phone.length !== 10) {
+      setError("Phone number must be exactly 10 digits");
+      return;
+    }
+
       const finalOtp = otp.join("");
 
       if (!/^\d{4}$/.test(finalOtp)) {
@@ -134,7 +143,7 @@ export default function Register() {
         return;
       }
 
-      const res = await fetch("http://172.24.202.171:8000/api/auth/register", {
+      const res = await fetch("http://172.27.16.252:8030/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -166,10 +175,9 @@ export default function Register() {
       setError("Server error");
     }
   };
-  
+
   return (
     <LinearGradient colors={["#6c4ef6", "#4a6cf7"]} style={{ flex: 1 }}>
-    
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
@@ -196,7 +204,13 @@ export default function Register() {
             />
 
             {/* Worker Checkbox */}
-            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 10,
+              }}
+            >
               <TouchableOpacity
                 onPress={() => setIsWorker(!isWorker)}
                 style={{ marginRight: 10 }}
@@ -207,7 +221,7 @@ export default function Register() {
                   color="#4a6cf7"
                 />
               </TouchableOpacity>
-              <Text>I am a Worker</Text>
+              <Text>Register as a Worker</Text>
             </View>
 
             {/* Email + OTP */}
@@ -221,15 +235,22 @@ export default function Register() {
                 />
               </View>
 
-              <TouchableOpacity
-                style={styles.otpBtn}
-                onPress={handleSendOTP}
-                disabled={timer > 0}
-              >
-                <Text style={{ fontSize: 12 }}>
-                  {timer > 0 ? `Wait ${timer}s` : "Verify OTP"}
-                </Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.otpBtn,
+                (timer > 0 || sendingOtp) && { opacity: 0.6 },
+              ]}
+              onPress={handleSendOTP}
+              disabled={timer > 0 || sendingOtp}
+            >
+              <Text style={{ fontSize: 12 }}>
+                {sendingOtp
+                  ? "Sending..."
+                  : timer > 0
+                  ? `Wait ${timer}s`
+                  : "Verify OTP"}
+              </Text>
+            </TouchableOpacity>
             </View>
 
             {/* Resend OTP */}
@@ -239,7 +260,13 @@ export default function Register() {
               </Text>
             ) : (
               <TouchableOpacity onPress={handleSendOTP}>
-                <Text style={{ textAlign: "center", color: "#4a6cf7", marginTop: 5 }}>
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#4a6cf7",
+                    marginTop: 5,
+                  }}
+                >
                   Resend OTP
                 </Text>
               </TouchableOpacity>
@@ -318,7 +345,10 @@ export default function Register() {
                   {selectedTags.map((tag) => (
                     <View key={tag} style={styles.tag}>
                       <Text style={{ color: "#fff" }}>{tag}</Text>
-                      <Text style={styles.remove} onPress={() => removeTag(tag)}>
+                      <Text
+                        style={styles.remove}
+                        onPress={() => removeTag(tag)}
+                      >
                         ✕
                       </Text>
                     </View>
@@ -365,191 +395,189 @@ export default function Register() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
     </LinearGradient>
   );
 }
-  
 
-  /* 🔥 Reusable */
+/* 🔥 Reusable */
 
-  const Input = ({ icon, placeholder, value, onChange }: any) => (
-    <View style={styles.inputContainer}>
-      <Ionicons name={icon} size={20} />
-      <TextInput
-        placeholder={placeholder}
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-      />
-    </View>
-  );
+const Input = ({ icon, placeholder, value, onChange }: any) => (
+  <View style={styles.inputContainer}>
+    <Ionicons name={icon} size={20} />
+    <TextInput
+      placeholder={placeholder}
+      style={styles.input}
+      value={value}
+      onChangeText={onChange}
+    />
+  </View>
+);
 
-  const PasswordInput = ({ value, onChange, show, toggle, placeholder }: any) => (
-    <View style={styles.inputContainer}>
-      <Ionicons name="lock-closed-outline" size={20} />
-      <TextInput
-        placeholder={placeholder}
-        secureTextEntry={!show}
-        style={styles.input}
-        value={value}
-        onChangeText={onChange}
-      />
-      <Ionicons
-        name={show ? "eye-outline" : "eye-off-outline"}
-        size={20}
-        onPress={toggle}
-      />
-    </View>
-  );
+const PasswordInput = ({ value, onChange, show, toggle, placeholder }: any) => (
+  <View style={styles.inputContainer}>
+    <Ionicons name="lock-closed-outline" size={20} />
+    <TextInput
+      placeholder={placeholder}
+      secureTextEntry={!show}
+      style={styles.input}
+      value={value}
+      onChangeText={onChange}
+    />
+    <Ionicons
+      name={show ? "eye-outline" : "eye-off-outline"}
+      size={20}
+      onPress={toggle}
+    />
+  </View>
+);
 
-  /* 🎨 Styles */
+/* 🎨 Styles */
 
-  const styles = StyleSheet.create({
-    container: {
-      flexGrow: 1,
-      padding: 20,
-      justifyContent: "center",
-    },
+const styles = StyleSheet.create({
+  container: {
+    flexGrow: 1,
+    padding: 20,
+    justifyContent: "center",
+  },
 
-    logo: {
-      fontSize: 34,
-      fontWeight: "bold",
-      textAlign: "center",
-      color: "#fff",
-    },
+  logo: {
+    fontSize: 34,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#fff",
+  },
 
-    subtitle: {
-      textAlign: "center",
-      marginBottom: 20,
-      color: "#eee",
-    },
+  subtitle: {
+    textAlign: "center",
+    marginBottom: 20,
+    color: "#eee",
+  },
 
-    card: {
-      backgroundColor: "#fff",
-      padding: 20,
-      borderRadius: 20,
-    },
+  card: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 20,
+  },
 
-    title: {
-      textAlign: "center",
-      fontWeight: "bold",
-      marginBottom: 10,
-      fontSize: 18,
-    },
+  title: {
+    textAlign: "center",
+    fontWeight: "bold",
+    marginBottom: 10,
+    fontSize: 18,
+  },
 
-    inputContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#f1f1f1",
-      padding: 10,
-      borderRadius: 10,
-      marginTop: 10,
-    },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f1f1",
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+  },
 
-    input: {
-      flex: 1,
-      marginLeft: 10,
-    },
+  input: {
+    flex: 1,
+    marginLeft: 10,
+  },
 
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-    },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
 
-    otpBtn: {
-      marginLeft: 10,
-      padding: 10,
-      backgroundColor: "#ddd",
-      borderRadius: 8,
-    },
+  otpBtn: {
+    marginLeft: 10,
+    padding: 10,
+    backgroundColor: "#ddd",
+    borderRadius: 8,
+  },
 
-    button: {
-      padding: 15,
-      borderRadius: 10,
-      marginTop: 20,
-    },
+  button: {
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+  },
 
-    buttonText: {
-      color: "#fff",
-      textAlign: "center",
-      fontWeight: "bold",
-    },
+  buttonText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
 
-    error: {
-      color: "red",
-      textAlign: "center",
-      marginTop: 10,
-    },
+  error: {
+    color: "red",
+    textAlign: "center",
+    marginTop: 10,
+  },
 
-    footer: {
-      textAlign: "center",
-      marginTop: 10,
-      fontSize: 12,
-    },
+  footer: {
+    textAlign: "center",
+    marginTop: 10,
+    fontSize: 12,
+  },
 
-    label: {
-      marginTop: 10,
-      fontWeight: "bold",
-    },
+  label: {
+    marginTop: 10,
+    fontWeight: "bold",
+  },
 
-    tagContainer: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      marginTop: 5,
-    },
+  tagContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 5,
+  },
 
-    tag: {
-      flexDirection: "row",
-      backgroundColor: "#6c4ef6",
-      padding: 6,
-      borderRadius: 10,
-      marginRight: 5,
-      marginTop: 5,
-    },
+  tag: {
+    flexDirection: "row",
+    backgroundColor: "#6c4ef6",
+    padding: 6,
+    borderRadius: 10,
+    marginRight: 5,
+    marginTop: 5,
+  },
 
-    remove: {
-      marginLeft: 5,
-      color: "#fff",
-    },
+  remove: {
+    marginLeft: 5,
+    color: "#fff",
+  },
 
-    dropdown: {
-      backgroundColor: "#fff",
-      borderRadius: 10,
-      marginTop: 5,
-      maxHeight: 120,
-    },
+  dropdown: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    marginTop: 5,
+    maxHeight: 120,
+  },
 
-    dropdownItem: {
-      padding: 10,
-      borderBottomWidth: 0.5,
-      borderColor: "#ddd",
-    },
-    otpContainer: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginTop: 10,
-    },
+  dropdownItem: {
+    padding: 10,
+    borderBottomWidth: 0.5,
+    borderColor: "#ddd",
+  },
+  otpContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+  },
 
-    otpBox: {
-      width: 55,
-      height: 55,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: "#ddd",
-      textAlign: "center",
-      fontSize: 18,
-    },
-    roleBtn: {
-      flex: 1,
-      padding: 10,
-      backgroundColor: "#ddd",
-      marginRight: 5,
-      borderRadius: 8,
-      alignItems: "center",
-    },
+  otpBox: {
+    width: 55,
+    height: 55,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    textAlign: "center",
+    fontSize: 18,
+  },
+  roleBtn: {
+    flex: 1,
+    padding: 10,
+    backgroundColor: "#ddd",
+    marginRight: 5,
+    borderRadius: 8,
+    alignItems: "center",
+  },
 
-    activeRole: {
-      backgroundColor: "#4a6cf7",
-    },
-  });
+  activeRole: {
+    backgroundColor: "#4a6cf7",
+  },
+});

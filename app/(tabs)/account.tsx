@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
+import { RefreshControl } from "react-native";
 import {
   ActivityIndicator,
   Image,
@@ -20,7 +21,7 @@ import {
 } from "../../constants/kaamsetuTheme";
 import { referrals } from "../../constants/mockData";
 
-const API_URL = "http://172.24.202.171:8000";
+const API_URL = "http://172.27.16.252:8030";
 
 // ─── Reusable Components ────────────────────────────────────────────────────
 
@@ -146,13 +147,24 @@ type JobType = {
 
 export default function AccountScreen() {
   const router = useRouter();
-
+  const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [myRequests, setMyRequests] = useState<JobType[]>([]);
   const [loading, setLoading] = useState(true);
   const [myApplications, setMyApplications] = useState<any[]>([]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    await loadAccountData();
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500); // smooth feel
+  };
+  
   const loadAccountData = async () => {
+  setLoading(true); // 🔥 ADD THIS
     try {
       const token = await AsyncStorage.getItem("token");
       const userString = await AsyncStorage.getItem("user");
@@ -197,22 +209,18 @@ if (appsRes.ok) {
     }
   };
   // ✅ REPLACE WITH THIS
-  useFocusEffect(
-    useCallback(() => {
-      const loadUser = async () => {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      };
-      loadUser();
-    }, []),
-  );
+    useFocusEffect(
+      useCallback(() => {
+        onRefresh();
+
+        return () => {
+          // optional cleanup (safe)
+        };
+      }, [])
+    );
   // if (!user) return null;
 
-  useEffect(() => {
-    loadAccountData();
-  }, []);
+
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
@@ -240,7 +248,12 @@ if (appsRes.ok) {
         <Text style={styles.headerTitle}>Account</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+                  contentContainerStyle={styles.scrollContent}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  }
+                >
         <View style={styles.profileCard}>
           <View style={styles.profileTop}>
             <Avatar
@@ -296,14 +309,7 @@ if (appsRes.ok) {
             <Text style={styles.primaryBtnText}>Update Profile</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/job-chat?chatId=69c39b7dcf8d1328e3f5ffd1")
-            }
-            style={styles.testChatBtn}
-          >
-            <Text style={styles.testChatBtnText}>Open Test Chat</Text>
-          </TouchableOpacity>
+          
         </View>
 
         <Text style={styles.sectionTitle}>My Requests (Current)</Text>

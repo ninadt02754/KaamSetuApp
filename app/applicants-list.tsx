@@ -41,7 +41,7 @@ export default function ApplicationListScreen() {
       }
 
       const res = await fetch(
-        `http://172.24.202.171:8000/api/applications/job/${jobId}`,
+        `http://172.27.16.252:8030/api/applications/job/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
