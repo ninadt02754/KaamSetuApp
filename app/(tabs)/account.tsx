@@ -1,28 +1,26 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   KColors as Colors,
   Radius,
   Shadow,
   Spacing,
 } from "../../constants/kaamsetuTheme";
-import { myApplications, referrals } from "../../constants/mockData";
+import { myApplications } from "../../constants/mockData";
 
-const API_URL = "http://172.27.16.252:8000";
-
-// ─── Reusable Components ────────────────────────────────────────────────────
+const API_URL = "http://172.27.16.252:8030";
 
 function Avatar({
   name,
@@ -114,7 +112,9 @@ function StatusBadge({ status }: { status: string }) {
       color: Colors.error,
     },
   };
-  const s = map[status] ?? map["pending"];
+
+  const s = map[status] ?? map.pending;
+
   return (
     <View style={[styles.badge, { backgroundColor: s.bg }]}>
       <Text style={[styles.badgeText, { color: s.color }]}>{s.label}</Text>
@@ -130,7 +130,7 @@ type UserType = {
   address?: string;
   skills?: string[];
   rating?: number;
-  profileImage?: string; // 🔥 ADD THIS
+  profileImage?: string;
 };
 
 type JobType = {
@@ -144,66 +144,85 @@ type JobType = {
   noBudget?: boolean;
 };
 
+type ReferralType = {
+  _id: string;
+  workerName: string;
+  workerPhone: string;
+  skills?: string[];
+  createdAt?: string;
+  jobId?: {
+    _id: string;
+    title?: string;
+    company?: string;
+  };
+};
+
 export default function AccountScreen() {
   const router = useRouter();
 
   const [user, setUser] = useState<UserType | null>(null);
   const [myRequests, setMyRequests] = useState<JobType[]>([]);
+  const [myReferrals, setMyReferrals] = useState<ReferralType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadAccountData = async () => {
+  const loadAccountData = useCallback(async () => {
     try {
+      setLoading(true);
+
       const token = await AsyncStorage.getItem("token");
       const userString = await AsyncStorage.getItem("user");
 
       if (!token || !userString) {
-        setLoading(false);
+        setUser(null);
+        setMyRequests([]);
+        setMyReferrals([]);
         return;
       }
 
       const parsedUser: UserType = JSON.parse(userString);
       setUser(parsedUser);
 
-      const requestsRes = await fetch(
-        `${API_URL}/api/jobs/my-requests/${parsedUser._id}`,
-        {
+      const [requestsRes, referralsRes] = await Promise.all([
+        fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
-      );
+        }),
+        fetch(`${API_URL}/api/referral`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+      ]);
 
       const requestsData = await requestsRes.json();
+      const referralsData = await referralsRes.json();
 
       if (requestsRes.ok && Array.isArray(requestsData)) {
         setMyRequests(requestsData);
       } else {
         setMyRequests([]);
       }
+
+      if (referralsRes.ok && Array.isArray(referralsData.referrals)) {
+        setMyReferrals(referralsData.referrals);
+      } else {
+        setMyReferrals([]);
+      }
     } catch (error) {
       console.log("Account load error:", error);
       setMyRequests([]);
+      setMyReferrals([]);
     } finally {
       setLoading(false);
     }
-  };
-  // ✅ REPLACE WITH THIS
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      const loadUser = async () => {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      };
-      loadUser();
-    }, []),
+      loadAccountData();
+    }, [loadAccountData])
   );
-  // if (!user) return null;
-
-  useEffect(() => {
-    loadAccountData();
-  }, []);
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
@@ -247,7 +266,7 @@ export default function AccountScreen() {
                 </Text>
 
                 <TouchableOpacity
-                  onPress={() => router.push("/update-profile")}
+                  onPress={handleUpdateProfile}
                   style={styles.editIcon}
                 >
                   <Text style={styles.editIconText}>✏️</Text>
@@ -256,7 +275,6 @@ export default function AccountScreen() {
 
               <StarRating rating={user?.rating || 0} />
 
-              {/* Skills */}
               {user?.skills && user.skills.length > 0 && (
                 <View style={styles.tagsRow}>
                   {user.skills.map((tag) => (
@@ -267,7 +285,6 @@ export default function AccountScreen() {
                 </View>
               )}
 
-              {/* Extra details (from other branch) */}
               <Text style={styles.profileText}>
                 Email: {user?.email || "-"}
               </Text>
@@ -286,18 +303,9 @@ export default function AccountScreen() {
           >
             <Text style={styles.primaryBtnText}>Update Profile</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() =>
-              router.push("/job-chat?chatId=69c39b7dcf8d1328e3f5ffd1")
-            }
-            style={styles.testChatBtn}
-          >
-            <Text style={styles.testChatBtnText}>Open Test Chat</Text>
-          </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>My Requests (Current)</Text>
+        <SectionHeader title="My Requests (Current)" />
 
         {loading ? (
           <View style={styles.centered}>
@@ -313,7 +321,7 @@ export default function AccountScreen() {
               <Text style={styles.requestTitle}>{job.category}</Text>
               <Text style={styles.requestSub}>{job.description}</Text>
               <Text style={styles.requestSub}>Address: {job.address}</Text>
-              <Text style={styles.requestSub}>Status: {job.status}</Text>
+              <StatusBadge status={job.status} />
 
               {job.noBudget ? (
                 <Text style={styles.requestSub}>Budget: Not specified</Text>
@@ -333,7 +341,7 @@ export default function AccountScreen() {
           ))
         )}
 
-        <Text style={styles.sectionTitle}>My Applications</Text>
+        <SectionHeader title="My Applications" />
 
         {myApplications.length === 0 ? (
           <View style={styles.emptyCard}>
@@ -351,20 +359,24 @@ export default function AccountScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.sectionTitle}>Referrals</Text>
+        <SectionHeader title="Referred Workers" />
 
-        {referrals.length === 0 ? (
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="small" color={Colors.primary} />
+          </View>
+        ) : myReferrals.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No referrals found.</Text>
+            <Text style={styles.emptyText}>No referred workers found.</Text>
           </View>
         ) : (
           <TouchableOpacity
             style={styles.quickCard}
             onPress={handleOpenReferrals}
           >
-            <Text style={styles.quickCardTitle}>Referrals</Text>
+            <Text style={styles.quickCardTitle}>Referred Workers</Text>
             <Text style={styles.quickCardSub}>
-              {referrals.length} referral item(s) available
+              {myReferrals.length} referred worker(s) available
             </Text>
           </TouchableOpacity>
         )}
@@ -381,6 +393,7 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
+
   header: {
     backgroundColor: Colors.primary,
     alignItems: "center",
@@ -391,15 +404,18 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
   },
+
   scrollContent: {
     padding: Spacing.md,
     gap: 14,
   },
+
   centered: {
     paddingVertical: 28,
     alignItems: "center",
     justifyContent: "center",
   },
+
   profileCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -408,6 +424,20 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     ...Shadow.md,
     gap: 12,
+  },
+  profileTop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+  },
+  profileInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  profileNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   profileName: {
     fontSize: 20,
@@ -418,6 +448,80 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
   },
+  editIcon: {
+    padding: 4,
+  },
+  editIconText: {
+    fontSize: 16,
+  },
+
+  avatar: {
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: Colors.white,
+    fontWeight: "700",
+  },
+
+  starsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  ratingText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+
+  tagsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 4,
+  },
+  tag: {
+    backgroundColor: Colors.primary + "20",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  tagText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: "600",
+  },
+
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 6,
+  },
+  sectionAccent: {
+    width: 4,
+    height: 18,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+
+  badge: {
+    alignSelf: "flex-start",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
   primaryBtn: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.full,
@@ -428,52 +532,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontWeight: "700",
   },
-  testChatBtn: {
-    backgroundColor: "green",
-    paddingVertical: 12,
-    borderRadius: Radius.md,
-    alignItems: "center",
-  },
-  testChatBtnText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.textPrimary,
-    marginTop: 6,
-  },
-  emptyCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: Colors.textMuted,
-  },
-  requestCard: {
-    backgroundColor: Colors.cardBg,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.cardBorder,
-    ...Shadow.md,
-    gap: 6,
-  },
-  requestTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: Colors.textPrimary,
-  },
-  requestSub: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
+
   outlineBtn: {
     marginTop: 10,
     borderWidth: 1.5,
@@ -486,6 +545,50 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "700",
   },
+
+  logoutBtn: {
+    backgroundColor: "#D9534F",
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  logoutBtnText: {
+    color: Colors.white,
+    fontWeight: "700",
+  },
+
+  emptyCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: Colors.textMuted,
+  },
+
+  requestCard: {
+    backgroundColor: Colors.cardBg,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.cardBorder,
+    ...Shadow.md,
+    gap: 6,
+  },
+
+  requestTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
+  requestSub: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+
   quickCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -504,104 +607,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  logoutBtn: {
-    backgroundColor: "#D9534F",
-    borderRadius: Radius.full,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  logoutBtnText: {
-    color: Colors.white,
-    fontWeight: "700",
-  },
-  avatar: {
-  backgroundColor: Colors.primary,
-  justifyContent: "center",
-  alignItems: "center",
-},
-
-avatarText: {
-  color: "#fff",
-  fontWeight: "bold",
-},
-
-starsRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginTop: 4,
-},
-
-ratingText: {
-  marginLeft: 5,
-  fontSize: 12,
-  color: Colors.textSecondary,
-},
-
-profileTop: {
-  flexDirection: "row",
-  alignItems: "center",
-},
-
-profileInfo: {
-  marginLeft: 12,
-  flex: 1,
-},
-
-profileNameRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-},
-
-editIcon: {
-  marginLeft: 8,
-},
-
-editIconText: {
-  fontSize: 16,
-},
-
-tagsRow: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  marginTop: 5,
-},
-
-tag: {
-  backgroundColor: Colors.primary,
-  paddingHorizontal: 8,
-  paddingVertical: 4,
-  borderRadius: 8,
-  marginRight: 5,
-  marginTop: 5,
-},
-
-tagText: {
-  color: "#fff",
-  fontSize: 12,
-},
-
-sectionHeaderRow: {
-  flexDirection: "row",
-  alignItems: "center",
-},
-
-sectionAccent: {
-  width: 4,
-  height: 16,
-  backgroundColor: Colors.primary,
-  marginRight: 6,
-  },
-badge: {
-  paddingHorizontal: 10,
-  paddingVertical: 4,
-  borderRadius: 12,
-  alignSelf: "flex-start",
-  marginTop: 6,
-},
-
-badgeText: {
-  fontSize: 12,
-  fontWeight: "600",
-},
 });

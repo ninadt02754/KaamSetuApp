@@ -19,7 +19,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-const BASE_URL = "http://172.27.16.252:8000/api"; // ← same IP as login.tsx
+const BASE_URL = "http://172.27.16.252:8030/api"; // ← same IP as login.tsx
 
 const PURPLE = "#2196F3";
 const LIGHT_PURPLE = "#F3E5F5";
@@ -419,45 +419,56 @@ export default function LiveJobsScreen() {
   // ─────────────────────────────────────────────────────────────────────────
   // SUBMIT REFERRAL
   // ─────────────────────────────────────────────────────────────────────────
+  const closeReferModal = () => {
+    setReferModal(false);
+    setReferJobId(null);
+    setReferName("");
+    setReferPhone("");
+    setReferSkills("");
+  };
+  
   const handleReferSubmit = async () => {
     if (!referName.trim())
       return Alert.alert("Error", "Please enter the worker's name");
+  
     if (referPhone.length !== 10)
       return Alert.alert("Error", "Phone number must be exactly 10 digits");
+  
     if (!referSkills.trim())
       return Alert.alert("Error", "Please describe the worker's skills");
-
+  
     setReferLoading(true);
+  
     try {
-      const res = await fetch(`${BASE_URL}/jobs/${referJobId}/refer`, {
+      const res = await fetch(`${BASE_URL}/referral/add`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          referredWorkerName: referName,
-          referredWorkerPhone: referPhone,
-          description: referSkills,
+          workerName: referName,
+          workerPhone: referPhone,
+          skills: referSkills.split(",").map((s) => s.trim()),
+          jobId: referJobId, // 🔥 VERY IMPORTANT
         }),
       });
-      // Success regardless (backend may not have this route yet)
-      Alert.alert("✅ Referral Sent!", "Your referral was submitted successfully.");
+  
+      const data = await res.json();
+  
+      if (!res.ok) {
+        return Alert.alert("Error", data.message || "Failed to add referral");
+      }
+  
+      Alert.alert("✅ Referral Added!", "Worker added to your referrals.");
+  
       closeReferModal();
-    } catch {
-      Alert.alert("✅ Referral Sent!", "Your referral was submitted. (Demo mode)");
-      closeReferModal();
+    } catch (error) {
+      console.log("Referral error:", error);
+      Alert.alert("Error", "Something went wrong");
     } finally {
       setReferLoading(false);
     }
-  };
-
-  const closeReferModal = () => {
-    setReferModal(false);
-    setReferName("");
-    setReferPhone("");
-    setReferSkills("");
-    setReferJobId(null);
   };
 
   // ─────────────────────────────────────────────────────────────────────────
