@@ -192,16 +192,20 @@ export default function AccountScreen() {
       const headers = { Authorization: `Bearer ${token}` };
 
       if (parsedUser.role === "worker") {
-        // ── WORKER: fetch current apps + past apps + referrals ──
-        const [appsRes, pastAppsRes, referralsRes] = await Promise.all([
-          fetch(`${API_URL}/api/applications/my-applications`,      { headers }),
-          fetch(`${API_URL}/api/applications/my-past-applications`, { headers }),
-          fetch(`${API_URL}/api/referral`,                          { headers }),
+        // ── WORKER: fetch current apps + past apps + referrals + job requests ──
+        const [appsRes, pastAppsRes, referralsRes, requestsRes, pastRequestsRes] = await Promise.all([
+          fetch(`${API_URL}/api/applications/my-applications`,              { headers }),
+          fetch(`${API_URL}/api/applications/my-past-applications`,         { headers }),
+          fetch(`${API_URL}/api/referral`,                                  { headers }),
+          fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`,        { headers }),
+          fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`,   { headers }),
         ]);
 
-        const appsData     = await appsRes.json();
-        const pastAppsData = await pastAppsRes.json();
-        const referralsData= await referralsRes.json();
+        const appsData        = await appsRes.json();
+        const pastAppsData    = await pastAppsRes.json();
+        const referralsData   = await referralsRes.json();
+        const requestsData    = await requestsRes.json();
+        const pastRequestsData= await pastRequestsRes.json();
 
         setMyApplications(
           appsRes.ok ? appsData.applications || [] : []
@@ -214,21 +218,34 @@ export default function AccountScreen() {
             ? referralsData.referrals
             : []
         );
+        setMyRequests(
+          requestsRes.ok && Array.isArray(requestsData) ? requestsData : []
+        );
+        setMyPastRequests(
+          pastRequestsRes.ok && Array.isArray(pastRequestsData) ? pastRequestsData : []
+        );
       } else {
-        // ── USER (employer): fetch current jobs + past jobs ──
-        const [requestsRes, pastRequestsRes] = await Promise.all([
+        // ── USER (employer): fetch current jobs + past jobs + referrals ──
+        const [requestsRes, pastRequestsRes, referralsRes] = await Promise.all([
           fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`,      { headers }),
           fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, { headers }),
+          fetch(`${API_URL}/api/referral`,                                { headers }),
         ]);
 
         const requestsData     = await requestsRes.json();
         const pastRequestsData = await pastRequestsRes.json();
+        const referralsData    = await referralsRes.json();
 
         setMyRequests(
           requestsRes.ok && Array.isArray(requestsData) ? requestsData : []
         );
         setMyPastRequests(
           pastRequestsRes.ok && Array.isArray(pastRequestsData) ? pastRequestsData : []
+        );
+        setMyReferrals(
+          referralsRes.ok && Array.isArray(referralsData.referrals)
+            ? referralsData.referrals
+            : []
         );
       }
     } catch (error) {
@@ -497,6 +514,23 @@ export default function AccountScreen() {
           </View>
         ))
       )}
+
+      {/* ── Referred Workers ── */}
+      <SectionHeader title="Referred Workers" />
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+        </View>
+      ) : myReferrals.length === 0 ? (
+        renderEmpty("No referred workers found.")
+      ) : (
+        <TouchableOpacity style={styles.quickCard} onPress={handleOpenReferrals}>
+          <Text style={styles.quickCardTitle}>Referred Workers</Text>
+          <Text style={styles.quickCardSub}>
+            {myReferrals.length} referred worker(s) — tap to view
+          </Text>
+        </TouchableOpacity>
+      )}
     </>
   );
 
@@ -504,6 +538,87 @@ export default function AccountScreen() {
 
   const renderWorkerSections = () => (
     <>
+      {/* ── My Current Requests ── */}
+      <SectionHeader title="My Requests" />
+      {loading ? renderLoadingSpinner() : myRequests.length === 0 ? (
+        renderEmpty("No active requests found.")
+      ) : (
+        myRequests.map((job) => (
+          <View key={job._id} style={styles.requestCard}>
+            {(job.status || "").toLowerCase() === "pending" && (
+              <TouchableOpacity
+                style={styles.topRightDeleteBtn}
+                onPress={() => handleDeleteJob(job._id)}
+              >
+                <Text style={styles.topRightDeleteIcon}>🗑️</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
+              {job.category}
+            </Text>
+            <Text style={styles.requestSub}>{job.description}</Text>
+            <Text style={styles.requestSub}>📍 {job.address}</Text>
+            <StatusBadge status={job.status} />
+
+            {job.noBudget ? (
+              <Text style={styles.requestSub}>Budget: Not specified</Text>
+            ) : (
+              <Text style={styles.requestSub}>
+                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={styles.outlineBtn}
+              onPress={() => router.push(`/applications?jobId=${job._id}`)}
+            >
+              <Text style={styles.outlineBtnText}>View Applicants</Text>
+            </TouchableOpacity>
+
+            {["in_progress", "in-progress"].includes(
+              (job.status || "").toLowerCase()
+            ) && (
+              <TouchableOpacity
+                style={styles.completeBtn}
+                onPress={() => handleCompleteJob(job._id)}
+              >
+                <Text style={styles.completeBtnText}>✅ Mark as Completed</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ))
+      )}
+
+      {/* ── Past Requests ── */}
+      <SectionHeader title="Past Requests" />
+      {loading ? renderLoadingSpinner() : myPastRequests.length === 0 ? (
+        renderEmpty("No past requests found.")
+      ) : (
+        myPastRequests.map((job) => (
+          <View key={job._id} style={[styles.requestCard, styles.pastCard]}>
+            <Text style={styles.requestTitle}>{job.category}</Text>
+            <Text style={styles.requestSub}>{job.description}</Text>
+            <Text style={styles.requestSub}>📍 {job.address}</Text>
+            <StatusBadge status={job.status} />
+
+            {job.noBudget ? (
+              <Text style={styles.requestSub}>Budget: Not specified</Text>
+            ) : (
+              <Text style={styles.requestSub}>
+                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
+              </Text>
+            )}
+
+            {job.completedAt && (
+              <Text style={styles.requestSub}>
+                🗓 Completed: {new Date(job.completedAt).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+        ))
+      )}
+
       {/* ── My Current Applications ── */}
       <SectionHeader title="My Applications" />
       {loading ? renderLoadingSpinner() : myApplications.length === 0 ? (
