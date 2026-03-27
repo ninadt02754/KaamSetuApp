@@ -119,7 +119,7 @@ export default function JobChatScreen() {
             Authorization: `Bearer ${token}`,
           },
         },
-      });
+      );
 
       const data = await res.json();
 
@@ -194,10 +194,7 @@ export default function JobChatScreen() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            content: input.trim(),
-          }),
-        },
+
         body: JSON.stringify({
           content: trimmed,
         }),

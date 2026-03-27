@@ -64,19 +64,22 @@ export default function ApplicationListScreen() {
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [referrals, setReferrals] = useState<ReferralItem[]>([]);
   const [loading, setLoading] = useState(true);
-
-export default function ApplicationsScreen() {
-  const router = useRouter();
-  const [tab, setTab] = useState<TabType>("accepted");
-  const [rating, setRating] = useState(0);
-  const [review, setReview] = useState("");
-  const [applications, setApplications] = useState<any[]>([]);
-  const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
-    visible: false,
-    appId: "",
-  });
-  const BASE_URL = API_BASE;
-  const { jobId } = useLocalSearchParams<{ jobId: string }>();
+  const getWorkerIdValue = (workerId?: WorkerRef) => {
+  if (!workerId) return null;
+  return typeof workerId === "string" ? workerId : workerId._id;
+};
+// export default function ApplicationsScreen() {
+//   const router = useRouter();
+//   const [tab, setTab] = useState<TabType>("accepted");
+//   const [rating, setRating] = useState(0);
+//   const [review, setReview] = useState("");
+//   const [applications, setApplications] = useState<any[]>([]);
+//   const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
+//     visible: false,
+//     appId: "",
+//   });
+//   const BASE_URL = API_BASE;
+//   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const getWorkerDisplayName = (app: ApplicationItem) => {
     if (app.workerName) return app.workerName;
