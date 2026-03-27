@@ -3,11 +3,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useRef, useState } from "react";
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ResetPassword() {
@@ -65,7 +65,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <LinearGradient colors={["#6c4ef6", "#4a6cf7"]} style={styles.container}>
+    <LinearGradient colors={["#2196F3", "#4a6cf7"]} style={styles.container}>
       <Text style={styles.logo}>KaamSetu</Text>
 
       <Text style={styles.subtitle}>
@@ -137,7 +137,7 @@ export default function ResetPassword() {
 
         {/* 🔘 BUTTON */}
         <TouchableOpacity onPress={handleSubmit}>
-          <LinearGradient colors={["#6c4ef6", "#4a6cf7"]} style={styles.button}>
+          <LinearGradient colors={["#2196F3", "#4a6cf7"]} style={styles.button}>
             <Text style={styles.buttonText}>Submit</Text>
           </LinearGradient>
         </TouchableOpacity>

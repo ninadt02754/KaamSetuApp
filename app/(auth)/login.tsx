@@ -84,7 +84,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <LinearGradient colors={["#6c4ef6", "#4a6cf7"]} style={styles.container}>
+    <LinearGradient colors={["#2196F3", "#4a6cf7"]} style={styles.container}>
       <Text style={styles.logo}>KaamSetu</Text>
       <Text style={styles.subtitle}>Bridging Opportunities</Text>
 
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    backgroundColor: "#6c4ef6",
+    backgroundColor: "#2196F3",
     padding: 14,
     borderRadius: 10,
     marginTop: 15,
