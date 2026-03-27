@@ -4,19 +4,21 @@ import auth from "../middleware/auth.js";
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
 import User from "../models/User.js";
+import Referral from "../models/Referral.js";
 
 const router = express.Router();
 
 // ================= GET ALL REFERRALS =================
-router.get("/", auth, async(req, res) => {
+router.get("/", auth, async (req, res) => {
     try {
         const user = await User.findById(req.user.id)
-            .populate("referrals.jobId", "category description")
+            .populate({
+                path: "referrals",
+                populate: { path: "jobId", select: "category description" },
+            })
             .select("referrals");
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        if (!user) return res.status(404).json({ message: "User not found" });
 
         res.json({ referrals: user.referrals });
     } catch (err) {
@@ -25,13 +27,13 @@ router.get("/", auth, async(req, res) => {
 });
 
 // ================= ADD REFERRAL =================
-router.post("/add", auth, async(req, res) => {
+router.post("/add", auth, async (req, res) => {
     try {
-        const { workerName, workerPhone, skills, jobId } = req.body;
+        const { workerName, workerPhone, message, jobId } = req.body;
 
         if (!workerName || !workerPhone || !jobId) {
             return res.status(400).json({
-                message: "Worker name, worker phone, and jobId are required",
+                message: "workerName, workerPhone, and jobId are required",
             });
         }
 
@@ -44,20 +46,15 @@ router.post("/add", auth, async(req, res) => {
             Job.findById(jobId),
         ]);
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!job) return res.status(404).json({ message: "Job not found" });
 
-        if (!job) {
-            return res.status(404).json({ message: "Job not found" });
-        }
-
-        const alreadyReferred = user.referrals.find(
-            (r) =>
-            r.workerPhone === workerPhone &&
-            r.jobId &&
-            r.jobId.toString() === jobId
-        );
+        // prevent duplicate referral
+        const alreadyReferred = await Referral.findOne({
+            referrerId: req.user.id,
+            workerPhone,
+            jobId,
+        });
 
         if (alreadyReferred) {
             return res.status(400).json({
@@ -65,94 +62,81 @@ router.post("/add", auth, async(req, res) => {
             });
         }
 
-        // prevent duplicate referral-based applications too
-        const existingReferralApplication = await Application.findOne({
-            jobId,
-            workerPhone,
-            source: "referral",
-            referrerId: req.user.id,
-        });
-
-        if (existingReferralApplication) {
-            return res.status(400).json({
-                message: "This referred worker is already in the applicant list for this job",
-            });
-        }
-
-        // if worker is already a registered user, attach workerId
+        // ✅ MINIMAL FIX: map message → skills + set workerId
         const existingWorker = await User.findOne({ phone: workerPhone }).select("_id");
 
-        user.referrals.push({
+        const referral = await Referral.create({
+            referrerId: req.user.id,
+            jobId,
+            workerId: existingWorker ? existingWorker._id : null,
             workerName,
             workerPhone,
-            skills: skills || [],
-            jobId,
+            skills: message ? [message] : [], // ✅ FIX
         });
 
-        await user.save();
+        // push referral ID into both user and job
+        await Promise.all([
+            User.findByIdAndUpdate(req.user.id, { $push: { referrals: referral._id } }),
+            Job.findByIdAndUpdate(jobId, { $push: { referrals: referral._id } }),
+        ]);
 
-        const createdReferral = user.referrals[user.referrals.length - 1];
-
+        // also create application entry
         await Application.create({
             jobId,
             workerId: existingWorker ? existingWorker._id : null,
             workerName,
             workerPhone,
-            skills: skills || [],
             status: "pending",
             source: "referral",
             referrerId: req.user.id,
-            referralId: createdReferral._id,
+            referralId: referral._id,
         });
 
-        const updatedUser = await User.findById(req.user.id)
-            .populate("referrals.jobId", "category description")
-            .select("referrals");
+        res.json({ message: "Referral added successfully", referral });
 
-        res.json({
-            message: "Referral added successfully",
-            referrals: updatedUser.referrals,
-        });
     } catch (err) {
+        // optional duplicate index safety
+        if (err.code === 11000) {
+            return res.status(400).json({
+                message: "You already referred this worker for this job",
+            });
+        }
+
         res.status(500).json({ error: err.message });
     }
 });
 
 // ================= REMOVE REFERRAL =================
-router.delete("/remove/:referralId", auth, async(req, res) => {
+router.delete("/remove/:referralId", auth, async (req, res) => {
     try {
         const { referralId } = req.params;
 
-        const user = await User.findById(req.user.id);
+        const referral = await Referral.findOne({
+            _id: referralId,
+            referrerId: req.user.id,
+        });
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
+        if (!referral) return res.status(404).json({ message: "Referral not found" });
 
-        const referralExists = user.referrals.id(referralId);
+        await Referral.findByIdAndDelete(referralId);
 
-        if (!referralExists) {
-            return res.status(404).json({ message: "Referral not found" });
-        }
+        await Promise.all([
+            User.findByIdAndUpdate(req.user.id, {
+                $pull: { referrals: new mongoose.Types.ObjectId(referralId) },
+            }),
+            Job.findByIdAndUpdate(referral.jobId, {
+                $pull: { referrals: new mongoose.Types.ObjectId(referralId) },
+            }),
+        ]);
 
-        // remove matching referral-based application too
         await Application.deleteMany({
             referralId,
             referrerId: req.user.id,
             source: "referral",
         });
 
-        user.referrals.pull({ _id: referralId });
-        await user.save();
+        res.json({ message: "Referral removed successfully" });
 
-        const updatedUser = await User.findById(req.user.id)
-            .populate("referrals.jobId", "category description")
-            .select("referrals");
-
-        res.json({
-            message: "Referral removed successfully",
-            referrals: updatedUser.referrals,
-        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

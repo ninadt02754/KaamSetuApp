@@ -34,21 +34,21 @@ router.post("/create", auth, async(req, res) => {
         }
 
         // Ensure application belongs to this job
-        if (application.jobId ? .toString() !== jobId.toString()) {
+        if (application.jobId?.toString() !== jobId.toString()) {
             return res.status(400).json({
                 message: "Application does not belong to this job",
             });
         }
 
         // Ensure application belongs to this worker
-        if (application.workerId ? .toString() !== workerId.toString()) {
+        if (application.workerId?.toString() !== workerId.toString()) {
             return res.status(400).json({
                 message: "Application does not belong to this worker",
             });
         }
 
         // Use posterId from the job itself so both sides refer to the same chat
-        const posterId = job.posterId ? .toString();
+        const posterId = job.posterId?.toString();
         if (!posterId) {
             return res.status(400).json({ message: "Job poster not found" });
         }
@@ -249,7 +249,7 @@ router.get("/job/:jobId", auth, async(req, res) => {
             return res.status(404).json({ message: "Job not found" });
         }
 
-        if (job.posterId ? .toString() !== req.user.id) {
+        if (job.posterId?.toString() !== req.user.id) {
             return res.status(403).json({
                 message: "Not authorized to view chats for this job",
             });

@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { Base_Url , API_BASE} from "../constants/Config";
 import {
   ActivityIndicator,
   Alert,
@@ -89,7 +88,10 @@ export default function ApplicationListScreen() {
   const [tab, setTab] = useState<"accepted" | "pending">("accepted");
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
-  const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
+  const [ratingModal, setRatingModal] = useState<{
+    visible: boolean;
+    appId: string;
+  }>({
     visible: false,
     appId: "",
   });
@@ -97,21 +99,21 @@ export default function ApplicationListScreen() {
   const [referrals, setReferrals] = useState<ReferralItem[]>([]);
   const [loading, setLoading] = useState(true);
   const getWorkerIdValue = (workerId?: WorkerRef) => {
-  if (!workerId) return null;
-  return typeof workerId === "string" ? workerId : workerId._id;
-};
-// export default function ApplicationsScreen() {
-//   const router = useRouter();
-//   const [tab, setTab] = useState<TabType>("accepted");
-//   const [rating, setRating] = useState(0);
-//   const [review, setReview] = useState("");
-//   const [applications, setApplications] = useState<any[]>([]);
-//   const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
-//     visible: false,
-//     appId: "",
-//   });
-//   const BASE_URL = API_BASE;
-//   const { jobId } = useLocalSearchParams<{ jobId: string }>();
+    if (!workerId) return null;
+    return typeof workerId === "string" ? workerId : workerId._id;
+  };
+  // export default function ApplicationsScreen() {
+  //   const router = useRouter();
+  //   const [tab, setTab] = useState<TabType>("accepted");
+  //   const [rating, setRating] = useState(0);
+  //   const [review, setReview] = useState("");
+  //   const [applications, setApplications] = useState<any[]>([]);
+  //   const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
+  //     visible: false,
+  //     appId: "",
+  //   });
+  //   const BASE_URL = API_BASE;
+  //   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const getWorkerDisplayName = (app: ApplicationItem) => {
     if (app.workerName) return app.workerName;
@@ -172,7 +174,7 @@ export default function ApplicationListScreen() {
             Authorization: `Bearer ${token}`,
           },
         }),
-        fetch(`${API_URL}/api/referral`, {
+        fetch(`${API_URL}/api/referrals`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -227,32 +229,43 @@ export default function ApplicationListScreen() {
       return item.jobId._id === jobId;
     });
   }, [referrals, jobId]);
-  
-const listData: ListRow[] = useMemo(() => {
-  const rows: ListRow[] = [];
+  const filteredApps = useMemo(() => {
+    return applications.filter((app) =>
+      tab === "accepted"
+        ? app.status === "accepted"
+        : app.status === "pending" || !app.status,
+    );
+  }, [applications, tab]);
 
-  const filteredApps = applications.filter(app =>
-    tab === "accepted"
-      ? app.status === "accepted"
-      : app.status === "pending" || !app.status
-  );
+  const listData: ListRow[] = useMemo(() => {
+    const rows: ListRow[] = [];
 
-  rows.push({ type: "section", id: "applicants-section", title: "Applicants" });
-  filteredApps.forEach(item => {
-    rows.push({ type: "application", id: `application-${item._id}`, data: item });
-  });
-
-  // referrals only shown in pending tab
-  if (tab === "pending") {
-    rows.push({ type: "section", id: "referrals-section", title: "Referred Workers" });
-    filteredReferrals.forEach(item => {
-      rows.push({ type: "referral", id: `referral-${item._id}`, data: item });
+    rows.push({
+      type: "section",
+      id: "applicants-section",
+      title: "Applicants",
     });
-  }
+    filteredApps.forEach((item) => {
+      rows.push({
+        type: "application",
+        id: `application-${item._id}`,
+        data: item,
+      });
+    });
 
-  return rows;
-}, [applications, filteredReferrals, tab]); // ← add tab here
+    if (tab === "pending") {
+      rows.push({
+        type: "section",
+        id: "referrals-section",
+        title: "Referred Workers",
+      });
+      filteredReferrals.forEach((item) => {
+        rows.push({ type: "referral", id: `referral-${item._id}`, data: item });
+      });
+    }
 
+    return rows;
+  }, [filteredApps, filteredReferrals, tab]);
   const handleAccept = async (applicationId: string) => {
     try {
       const token = await AsyncStorage.getItem("token");
@@ -346,33 +359,33 @@ const listData: ListRow[] = useMemo(() => {
     }
   };
   const handleRatingSubmit = async () => {
-  const appId = ratingModal.appId;
-  const token = await AsyncStorage.getItem("token");
-  const res = await fetch(`${API_URL}/api/applications/complete/${appId}`, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ rating, review }),
-  });
-  const data = await res.json();
-  if (res.ok) {
+    const appId = ratingModal.appId;
+    const token = await AsyncStorage.getItem("token");
+    const res = await fetch(`${API_URL}/api/applications/complete/${appId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ rating, review }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setRatingModal({ visible: false, appId: "" });
+      setRating(0);
+      setReview("");
+      Alert.alert("Thank you!", "Your rating has been submitted.");
+      fetchData();
+    } else {
+      Alert.alert("Error", data.message || "Failed to submit rating");
+    }
+  };
+
+  const handleSkipRating = () => {
     setRatingModal({ visible: false, appId: "" });
     setRating(0);
     setReview("");
-    Alert.alert("Thank you!", "Your rating has been submitted.");
-    fetchData();
-  } else {
-    Alert.alert("Error", data.message || "Failed to submit rating");
-  }
-};
-
-const handleSkipRating = () => {
-  setRatingModal({ visible: false, appId: "" });
-  setRating(0);
-  setReview("");
-};
+  };
   const renderItem = ({ item }: { item: ListRow }) => {
     if (item.type === "section") {
       return (
@@ -408,22 +421,10 @@ const handleSkipRating = () => {
               <Text style={styles.cardSubtitle}>Phone: {workerPhone}</Text>
             ) : null}
 
-            {workerSkills.length > 0 ? (
-              <Text style={styles.cardSubtitle}>
-                Skills: {workerSkills.join(", ")}
-              </Text>
-            ) : null}
-
             <Text style={styles.cardSubtitle}>Status: {status}</Text>
 
-            <Text style={styles.cardSubtitle}>
-              Type: {app.source === "referral" ? "Referred" : "Applied"}
-            </Text>
-
-            {canOpenProfile ? (
+            {canOpenProfile && (
               <Text style={styles.openText}>View Profile →</Text>
-            ) : (
-              <Text style={styles.metaText}>Profile not available</Text>
             )}
           </TouchableOpacity>
 
@@ -436,7 +437,7 @@ const handleSkipRating = () => {
                 >
                   <Text style={styles.acceptBtnText}>Accept</Text>
                 </TouchableOpacity>
-<TouchableOpacity
+                <TouchableOpacity
                   style={styles.rejectBtn}
                   onPress={() => handleReject(app._id)}
                 >
@@ -484,10 +485,11 @@ const handleSkipRating = () => {
   };
 
   const keyExtractor = (item: ListRow) => item.id;
-  const showApplicantsEmpty = applications.length === 0;
-  const showReferralsEmpty = filteredReferrals.length === 0;
-  const showCompletelyEmpty = showApplicantsEmpty && showReferralsEmpty;
-
+  const showApplicantsEmpty = filteredApps.length === 0;
+  const showReferralsEmpty =
+    tab === "pending" ? filteredReferrals.length === 0 : false;
+  const showCompletelyEmpty =
+    showApplicantsEmpty && (tab === "pending" ? showReferralsEmpty : true);
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
@@ -514,7 +516,12 @@ const handleSkipRating = () => {
               alignItems: "center",
             }}
           >
-            <Text style={{ color: tab === t ? "#fff" : Colors.textSecondary, fontWeight: "700" }}>
+            <Text
+              style={{
+                color: tab === t ? "#fff" : Colors.textSecondary,
+                fontWeight: "700",
+              }}
+            >
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </Text>
           </TouchableOpacity>
@@ -573,17 +580,22 @@ const handleSkipRating = () => {
               numberOfLines={3}
             />
             <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-              <TouchableOpacity style={styles.skipBtn} onPress={handleSkipRating}>
+              <TouchableOpacity
+                style={styles.skipBtn}
+                onPress={handleSkipRating}
+              >
                 <Text style={styles.skipBtnText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitRatingBtn} onPress={handleRatingSubmit}>
+              <TouchableOpacity
+                style={styles.submitRatingBtn}
+                onPress={handleRatingSubmit}
+              >
                 <Text style={styles.submitRatingText}>Submit & End</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -606,7 +618,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: 14,
   },
-
 
   backBtn: {
     width: 36,
@@ -777,55 +788,55 @@ const styles = StyleSheet.create({
   },
   skipBtnText: { color: Colors.textSecondary, fontWeight: "600", fontSize: 14 },
   overlay: {
-  flex: 1,
-  backgroundColor: "rgba(0,0,0,0.5)",
-  justifyContent: "center",
-  alignItems: "center",
-  padding: 20,
-},
-modalCard: {
-  backgroundColor: "#fff",
-  borderRadius: 16,
-  padding: 24,
-  width: "100%",
-  gap: 12,
-},
-modalTitle: {
-  fontSize: 18,
-  fontWeight: "800",
-  color: Colors.textPrimary,
-},
-modalSubtitle: {
-  fontSize: 14,
-  color: Colors.textSecondary,
-},
-reviewInput: {
-  borderWidth: 1,
-  borderColor: "#DDD",
-  borderRadius: 10,
-  padding: 10,
-  fontSize: 14,
-  color: Colors.textPrimary,
-  minHeight: 80,
-  textAlignVertical: "top",
-},
-skipBtn: {
-  flex: 1,
-  padding: 12,
-  borderRadius: 999,
-  backgroundColor: "#F1F3F5",
-  alignItems: "center",
-},
-submitRatingBtn: {
-  flex: 1,
-  padding: 12,
-  borderRadius: 999,
-  backgroundColor: Colors.primary,
-  alignItems: "center",
-},
-submitRatingText: {
-  color: "#fff",
-  fontWeight: "700",
-  fontSize: 14,
-},
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: Colors.textPrimary,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: "#DDD",
+    borderRadius: 10,
+    padding: 10,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  skipBtn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 999,
+    backgroundColor: "#F1F3F5",
+    alignItems: "center",
+  },
+  submitRatingBtn: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 999,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+  },
+  submitRatingText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
+  },
 });

@@ -11,6 +11,7 @@ const jobSchema = new mongoose.Schema(
     noBudget: { type: Boolean, default: false },
     startDate: { type: Date, required: true },
     endDate: { type: Date },
+    referrals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Referral" }],
     status: {
       type: String,
       enum: ["pending", "in-progress", "completed"],

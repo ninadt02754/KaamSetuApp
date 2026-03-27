@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { Base_Url,API_BASE } from "../../constants/Config";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { API_BASE } from "../../constants/Config";
 
 import Popup from "../../components/Popup";
 
@@ -415,63 +415,86 @@ export default function LiveJobsScreen() {
     setReferSkills("");
   };
 
-  const handleReferSubmit = async () => {
-    if (!referName.trim()) {
+const handleReferSubmit = async () => {
+  console.log("🚀 Referral submit triggered");
+
+  if (!referName.trim()) {
+    console.log("❌ Name missing");
     setPopup("Please enter the worker's name");
     setPopupType("error");
     return;
   }
 
-  if (referPhone.length !== 10) {
+  if (!/^\d{10}$/.test(referPhone.trim())) {
+    console.log("❌ Invalid phone:", referPhone);
     setPopup("Phone number must be exactly 10 digits");
     setPopupType("error");
     return;
   }
 
   if (!referSkills.trim()) {
+    console.log("❌ Skills missing");
     setPopup("Please describe the worker's skills");
     setPopupType("error");
     return;
   }
 
-    setReferLoading(true);
+  if (!referJobId) {
+    console.log("❌ No jobId");
+    setPopup("No job selected");
+    setPopupType("error");
+    return;
+  }
 
-    try {
-      const res = await fetch(`${BASE_URL}/referral/add`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          workerName: referName,
-          workerPhone: referPhone,
-          skills: referSkills.split(",").map((s) => s.trim()),
-          jobId: referJobId,
-        }),
-      });
+  setReferLoading(true);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setPopup(data.message || "Failed to add referral");
-        setPopupType("error");
-        return;
-      }
-
-      setPopup("Worker added to your referrals");
-      setPopupType("normal");
-
-      closeReferModal();
-    } catch (error) {
-      console.log("Referral error:", error);
-      setPopup("Something went wrong");
-      setPopupType("error");
-    } finally {
-      setReferLoading(false);
-    }
+  const payload = {
+    workerName: referName.trim(),
+    workerPhone: referPhone.trim(),
+    message: referSkills.trim(),
+    jobId: referJobId,
   };
 
+  console.log("📦 Sending payload:", payload);
+  console.log("🌐 URL:", `${BASE_URL}/referrals/add`);
+
+  try {
+    const res = await fetch(`${BASE_URL}/referrals/add`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("📡 Response status:", res.status);
+
+    const data = await res.json();
+    console.log("📨 Response data:", data);
+
+    if (!res.ok) {
+      console.log("❌ Backend error:", data);
+      setPopup(data.message || "Failed to add referral");
+      setPopupType("error");
+      return;
+    }
+
+    console.log("✅ Referral success");
+
+    setPopup("Worker added to your referrals");
+    setPopupType("normal");
+
+    closeReferModal();
+  } catch (error) {
+    console.log("🔥 Network / Fetch error:", error);
+    setPopup("Something went wrong");
+    setPopupType("error");
+  } finally {
+    console.log("🧹 Done (loading false)");
+    setReferLoading(false);
+  }
+};
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER: Filter Pill + Dropdown
   // ─────────────────────────────────────────────────────────────────────────
