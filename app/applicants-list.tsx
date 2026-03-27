@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
 import {
   KColors as Colors,
@@ -20,8 +21,10 @@ import {
 
 type ApplicationItem = {
   _id: string;
-  workerId: string;
+  workerId: any;
   status?: string;
+  expectedPay?: number;
+  createdAt?: string;
 };
 
 export default function ApplicationListScreen() {
@@ -41,7 +44,7 @@ export default function ApplicationListScreen() {
       }
 
       const res = await fetch(
-        `http://172.24.202.171:8000/api/applications/job/${jobId}`,
+        `http://172.24.211.145:8000/api/applications/job/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -69,6 +72,44 @@ export default function ApplicationListScreen() {
     fetchApplications();
   }, [jobId]);
 
+  const handleAccept = async (applicationId: string) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    const res = await fetch(
+      `http://172.24.211.145:8000/api/applications/accept/${applicationId}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    if (res.ok) {
+      Alert.alert("Success", "Worker accepted!");
+      fetchApplications();
+    } else {
+      Alert.alert("Error", data.message || "Failed to accept");
+    }
+  } catch (err) {
+    Alert.alert("Error", "Something went wrong");
+  }
+};
+
+const handleReject = async (applicationId: string) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    const res = await fetch(
+      `http://172.24.211.145:8000/api/applications/reject/${applicationId}`,
+      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    if (res.ok) {
+      Alert.alert("Success", "Worker rejected!");
+      fetchApplications();
+    } else {
+      Alert.alert("Error", data.message || "Failed to reject");
+    }
+  } catch (err) {
+    Alert.alert("Error", "Something went wrong");
+  }
+};
+
   const renderItem = ({ item }: { item: ApplicationItem }) => {
     return (
       <TouchableOpacity
@@ -83,7 +124,6 @@ export default function ApplicationListScreen() {
         <Text style={styles.cardSubtitle}>
           Status: {item.status || "pending"}
         </Text>
-        <Text style={styles.openText}>View Profile →</Text>
       </TouchableOpacity>
     );
   };
@@ -158,14 +198,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  openText: {
-    marginTop: 10,
-    fontSize: 14,
-    fontWeight: "700",
-    color: Colors.primary,
-  },
   emptyText: {
     fontSize: 15,
     color: Colors.textMuted,
+  },
+  acceptBtn: {
+    flex: 1,
+    backgroundColor: "#2E7D32",
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  acceptBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  rejectBtn: {
+    flex: 1,
+    backgroundColor: "#C62828",
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  rejectBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });

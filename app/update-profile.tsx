@@ -158,7 +158,7 @@ export default function UpdateProfileScreen() {
 
       // 🔥 CALL BACKEND
       const res = await fetch(
-        "http://172.24.202.171:8000/api/auth/update-profile",
+        "http://172.24.211.145:8000/api/auth/update-profile",
         {
           method: "PUT",
           body: formData, // ❗ no headers

@@ -2,24 +2,24 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import {
-  KColors as Colors,
-  Radius,
-  Shadow,
-  Spacing,
+    KColors as Colors,
+    Radius,
+    Shadow,
+    Spacing,
 } from "../constants/kaamsetuTheme";
 
 type ChatMessage = {
@@ -56,7 +56,7 @@ export default function JobChatScreen() {
       }
 
       const res = await fetch(
-        `http://172.24.202.171:8000/api/chat/${chatId}/messages`,
+        `http://172.24.211.145:8000/api/chat/${chatId}/messages`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -97,7 +97,7 @@ export default function JobChatScreen() {
       }
 
       const res = await fetch(
-        `http://172.24.202.171:8000/api/chat/${chatId}/send`,
+        `http://172.24.211.145:8000/api/chat/${chatId}/send`,
         {
           method: "POST",
           headers: {

@@ -20,7 +20,7 @@ import {
 } from "../../constants/kaamsetuTheme";
 import { referrals } from "../../constants/mockData";
 
-const API_URL = "http://172.24.202.171:8000";
+const API_URL = "http://172.24.211.145:8000";
 
 // ─── Reusable Components ────────────────────────────────────────────────────
 
@@ -71,17 +71,13 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <View style={styles.starsRow}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Text
-          key={i}
-          style={{
-            color: i <= Math.round(rating) ? Colors.starGold : "#DDD",
-            fontSize: 14,
-          }}
-        >
+        <Text key={i} style={{ color: i <= Math.round(rating) ? Colors.starGold : "#DDD", fontSize: 14 }}>
           ★
         </Text>
       ))}
-      <Text style={styles.ratingText}> ({rating})</Text>
+      <Text style={styles.ratingText}>
+        ({rating > 0 ? rating.toFixed(1) : "0"})
+      </Text>
     </View>
   );
 }
@@ -130,6 +126,8 @@ type UserType = {
   address?: string;
   skills?: string[];
   rating?: number;
+  averageRating?: number;  // 👈 add this
+  totalRatings?: number;   // 👈 add this
   profileImage?: string; // 🔥 ADD THIS
 };
 
@@ -163,7 +161,18 @@ export default function AccountScreen() {
       }
 
       const parsedUser: UserType = JSON.parse(userString);
-      setUser(parsedUser);
+
+// Fetch fresh user data from API to get updated rating
+const userRes = await fetch(`${API_URL}/api/auth/me`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
+if (userRes.ok) {
+  const userData = await userRes.json();
+  setUser(userData.user || parsedUser);
+  await AsyncStorage.setItem("user", JSON.stringify(userData.user || parsedUser));
+} else {
+  setUser(parsedUser);
+}
 
       const requestsRes = await fetch(
         `${API_URL}/api/jobs/my-requests/${parsedUser._id}`,
@@ -174,13 +183,16 @@ export default function AccountScreen() {
         },
       );
 
-      const appsRes = await fetch(`${API_URL}/api/applications/my-applications`, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-const appsData = await appsRes.json();
-if (appsRes.ok) {
-  setMyApplications(appsData.applications || []);
-}
+      const appsRes = await fetch(
+        `${API_URL}/api/applications/my-applications`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const appsData = await appsRes.json();
+      if (appsRes.ok) {
+        setMyApplications(appsData.applications || []);
+      }
 
       const requestsData = await requestsRes.json();
 
@@ -197,17 +209,28 @@ if (appsRes.ok) {
     }
   };
   // ✅ REPLACE WITH THIS
-  useFocusEffect(
-    useCallback(() => {
-      const loadUser = async () => {
-        const storedUser = await AsyncStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+ useFocusEffect(
+  useCallback(() => {
+    const loadFreshUser = async () => {
+      try {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+          await AsyncStorage.setItem("user", JSON.stringify(data.user));
         }
-      };
-      loadUser();
-    }, []),
-  );
+      } catch (err) {
+        console.log("Failed to refresh user:", err);
+      }
+    };
+    loadFreshUser();
+  }, []),
+);
+
   // if (!user) return null;
 
   useEffect(() => {
@@ -263,7 +286,7 @@ if (appsRes.ok) {
                 </TouchableOpacity>
               </View>
 
-              <StarRating rating={user?.rating || 0} />
+             <StarRating rating={user?.averageRating || 0} />
 
               {/* Skills */}
               {user?.skills && user.skills.length > 0 && (
@@ -346,22 +369,24 @@ if (appsRes.ok) {
 
         <Text style={styles.sectionTitle}>My Applications</Text>
 
-{myApplications.length === 0 ? (
-  <View style={styles.emptyCard}>
-    <Text style={styles.emptyText}>No applications found.</Text>
-  </View>
-) : (
-  myApplications.map((app) => (
-    <View key={app._id} style={styles.requestCard}>
-      <Text style={styles.requestTitle}>{app.jobId?.category}</Text>
-      <Text style={styles.requestSub}>Status: {app.status}</Text>
-      <Text style={styles.requestSub}>Expected Pay: ₹{app.expectedPay}</Text>
-      <Text style={styles.requestSub}>
-        Applied: {new Date(app.createdAt).toLocaleDateString()}
-      </Text>
-    </View>
-  ))
-)}
+        {myApplications.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No applications found.</Text>
+          </View>
+        ) : (
+          myApplications.map((app) => (
+            <View key={app._id} style={styles.requestCard}>
+              <Text style={styles.requestTitle}>{app.jobId?.category}</Text>
+              <Text style={styles.requestSub}>Status: {app.status}</Text>
+              <Text style={styles.requestSub}>
+                Expected Pay: ₹{app.expectedPay}
+              </Text>
+              <Text style={styles.requestSub}>
+                Applied: {new Date(app.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+          ))
+        )}
 
         <Text style={styles.sectionTitle}>Referrals</Text>
 
