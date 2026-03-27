@@ -49,7 +49,7 @@ export default function HomeScreen() {
     try {
       setError("");
 
-      const res = await fetch("http://172.24.211.145:8000/api/auth/login", {
+      const res = await fetch("http://172.27.16.252:8030/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -86,7 +86,7 @@ export default function HomeScreen() {
   return (
     <LinearGradient colors={["#6c4ef6", "#4a6cf7"]} style={styles.container}>
       <Text style={styles.logo}>KaamSetu</Text>
-      <Text style={styles.subtitle}>Connecting Workers with Opportunities</Text>
+      <Text style={styles.subtitle}>Bridging Opportunities</Text>
 
       <View style={styles.card}>
         <Text style={styles.title}>Login to KaamSetu</Text>

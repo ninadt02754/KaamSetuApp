@@ -19,7 +19,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-const BASE_URL = "http://172.24.211.145:8000/api"; // ← same IP as login.tsx
+const BASE_URL = "http://172.27.16.252:8030/api"; // ← same IP as login.tsx
 
 const PURPLE = "#2196F3";
 const LIGHT_PURPLE = "#F3E5F5";
@@ -29,30 +29,63 @@ const TEXT_DARK = "#212121";
 // ─────────────────────────────────────────────────────────────────────────────
 // FILTER OPTIONS  (matches Figure 8 in design doc)
 // ─────────────────────────────────────────────────────────────────────────────
+// Your exact list (with "All" added at the start for the filter UI)
 const CATEGORIES = [
   "All",
-  "Plumbing",
-  "Cooking",
   "Cleaning",
-  "Gardening",
+  "Cooking",
+  "Plumbing",
   "Electrician",
-  "Maid",
+  "Babysitting",
+  "Laundry",
+  "Gardening",
+  "Driver",
+  "Carpenter",
+  "Painter",
+  "Other",
 ];
 
-const PAY_RANGES = ["All", "₹100–₹300", "₹300–₹500", "₹500–₹1000", "₹1000+"];
+// Increased granularity for better budget filtering
+const PAY_RANGES = [
+  "All",
+  "Under ₹100",
+  "₹100–₹300",
+  "₹300–₹500",
+  "₹500–₹800",
+  "₹800–₹1200",
+  "₹1200–₹2000",
+  "₹2000+",
+];
 
-const SCHEDULES = ["Any", "Current", "Within 1 hr", "Within 5 hrs", "Tomorrow"];
-
+// Expanded timeframes for more specific scheduling
+const SCHEDULES = [
+  "Any",
+  "Immediate",
+  "Within 1 hr",
+  "Within 2 hrs",
+  "Within 5 hrs",
+  "Today",
+  "Tomorrow",
+  "Within 3 Days",
+  "Next Week",
+];
 // ─────────────────────────────────────────────────────────────────────────────
 // CATEGORY → ICON MAP  (Ionicons names)
 // ─────────────────────────────────────────────────────────────────────────────
 const CATEGORY_ICONS: Record<string, string> = {
-  Plumbing: "water-outline",
-  Cooking: "restaurant-outline",
   Cleaning: "sparkles-outline",
-  Gardening: "leaf-outline",
+  Cooking: "restaurant-outline",
+  Plumbing: "water-outline",
   Electrician: "flash-outline",
-  Maid: "home-outline",
+  Babysitting: "people-outline",
+  Laundry: "shirt-outline",
+  Gardening: "leaf-outline",
+  Driver: "car-outline",
+  Carpenter: "hammer-outline",
+  Painter: "color-palette-outline",
+  Other: "grid-outline",
+
+  // Fallback icon just in case a category is missing or misspelled in the DB
   default: "briefcase-outline",
 };
 
@@ -398,51 +431,56 @@ export default function LiveJobsScreen() {
   // ─────────────────────────────────────────────────────────────────────────
   // SUBMIT REFERRAL
   // ─────────────────────────────────────────────────────────────────────────
+  const closeReferModal = () => {
+    setReferModal(false);
+    setReferJobId(null);
+    setReferName("");
+    setReferPhone("");
+    setReferSkills("");
+  };
+
   const handleReferSubmit = async () => {
     if (!referName.trim())
       return Alert.alert("Error", "Please enter the worker's name");
+
     if (referPhone.length !== 10)
       return Alert.alert("Error", "Phone number must be exactly 10 digits");
+
     if (!referSkills.trim())
       return Alert.alert("Error", "Please describe the worker's skills");
 
     setReferLoading(true);
+
     try {
-      const res = await fetch(`${BASE_URL}/jobs/${referJobId}/refer`, {
+      const res = await fetch(`${BASE_URL}/referral/add`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          referredWorkerName: referName,
-          referredWorkerPhone: referPhone,
-          description: referSkills,
+          workerName: referName,
+          workerPhone: referPhone,
+          skills: referSkills.split(",").map((s) => s.trim()),
+          jobId: referJobId, // 🔥 VERY IMPORTANT
         }),
       });
-      // Success regardless (backend may not have this route yet)
-      Alert.alert(
-        "✅ Referral Sent!",
-        "Your referral was submitted successfully.",
-      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return Alert.alert("Error", data.message || "Failed to add referral");
+      }
+
+      Alert.alert("✅ Referral Added!", "Worker added to your referrals.");
+
       closeReferModal();
-    } catch {
-      Alert.alert(
-        "✅ Referral Sent!",
-        "Your referral was submitted. (Demo mode)",
-      );
-      closeReferModal();
+    } catch (error) {
+      console.log("Referral error:", error);
+      Alert.alert("Error", "Something went wrong");
     } finally {
       setReferLoading(false);
     }
-  };
-
-  const closeReferModal = () => {
-    setReferModal(false);
-    setReferName("");
-    setReferPhone("");
-    setReferSkills("");
-    setReferJobId(null);
   };
 
   // ─────────────────────────────────────────────────────────────────────────

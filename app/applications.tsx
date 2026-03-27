@@ -58,18 +58,22 @@ export default function ApplicationsScreen() {
     visible: false,
     appId: "",
   });
-  const BASE_URL = "http://172.24.211.145:8000/api";
+  const BASE_URL = "http://172.27.16.252:8030/api";
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const fetchApplications = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
+
+      // If jobId is passed, fetch applicants for that specific job
       const url = jobId
         ? `${BASE_URL}/applications/job/${jobId}`
         : `${BASE_URL}/applications/received`;
+
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
       const data = await res.json();
       setApplications(data.applications || []);
     } catch (err) {

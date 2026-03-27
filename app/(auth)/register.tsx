@@ -14,10 +14,12 @@ import {
 } from "react-native";
 
 export default function Register() {
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [isWorker, setIsWorker] = useState(false);
   const [role, setRole] = useState("user");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const parts = email.split("@");
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -86,12 +88,12 @@ export default function Register() {
   // OTP
   const handleSendOTP = async () => {
     try {
-      if (!email.includes("@")) {
-        setError("Enter valid email");
+      if (parts.length !== 2 || !parts[1].includes(".")) {
+        setError("Enter valid email with domain");
         return;
       }
-
-      const res = await fetch("http://172.24.211.145:8000/api/auth/send-otp", {
+      setSendingOtp(true); // 🔥 START LOADING
+      const res = await fetch("http://172.27.16.252:8030/api/auth/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -112,6 +114,8 @@ export default function Register() {
     } catch (err) {
       console.log(err);
       setError("Error sending OTP");
+    } finally {
+      setSendingOtp(false); // 🔥 STOP LOADING
     }
   };
 
@@ -127,6 +131,11 @@ export default function Register() {
         return;
       }
 
+      if (phone.length !== 10) {
+        setError("Phone number must be exactly 10 digits");
+        return;
+      }
+
       const finalOtp = otp.join("");
 
       if (!/^\d{4}$/.test(finalOtp)) {
@@ -134,7 +143,7 @@ export default function Register() {
         return;
       }
 
-      const res = await fetch("http://172.24.211.145:8000/api/auth/register", {
+      const res = await fetch("http://172.27.16.252:8030/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -212,7 +221,7 @@ export default function Register() {
                   color="#4a6cf7"
                 />
               </TouchableOpacity>
-              <Text>I am a Worker</Text>
+              <Text>Register as a Worker</Text>
             </View>
 
             {/* Email + OTP */}
@@ -227,12 +236,19 @@ export default function Register() {
               </View>
 
               <TouchableOpacity
-                style={styles.otpBtn}
+                style={[
+                  styles.otpBtn,
+                  (timer > 0 || sendingOtp) && { opacity: 0.6 },
+                ]}
                 onPress={handleSendOTP}
-                disabled={timer > 0}
+                disabled={timer > 0 || sendingOtp}
               >
                 <Text style={{ fontSize: 12 }}>
-                  {timer > 0 ? `Wait ${timer}s` : "Verify OTP"}
+                  {sendingOtp
+                    ? "Sending..."
+                    : timer > 0
+                      ? `Wait ${timer}s`
+                      : "Verify OTP"}
                 </Text>
               </TouchableOpacity>
             </View>

@@ -11,7 +11,9 @@ import {
 } from "react-native";
 
 export default function ForgotPassword() {
+  const [sendingOtp, setSendingOtp] = useState(false);
   const [email, setEmail] = useState("");
+  const parts = email.split("@");
   const [otp, setOtp] = useState(["", "", "", ""]);
   const inputs = useRef<Array<TextInput | null>>([]);
 
@@ -43,12 +45,13 @@ export default function ForgotPassword() {
   // ✅ SEND OTP
   const handleSendOTP = async () => {
     try {
-      if (!email.includes("@")) {
-        setError("Enter valid email");
+      if (parts.length !== 2 || !parts[1].includes(".")) {
+        setError("Enter valid email with domain");
         return;
       }
+      setSendingOtp(true); // 🔥 START
 
-      const res = await fetch("http://172.24.211.145:8000/api/auth/send-otp", {
+      const res = await fetch("http://172.27.16.252:8030/api/auth/send-otp", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,6 +73,8 @@ export default function ForgotPassword() {
     } catch (err) {
       console.log(err);
       setError("Error sending OTP");
+    } finally {
+      setSendingOtp(false); // 🔥 STOP
     }
   };
 
@@ -114,7 +119,7 @@ export default function ForgotPassword() {
       }
       console.log("API CALL START");
       const res = await fetch(
-        "http://172.24.211.145:8000/api/auth/reset-password",
+        "http://172.27.16.252:8030/api/auth/reset-password",
         {
           method: "POST",
           headers: {
@@ -168,12 +173,19 @@ export default function ForgotPassword() {
           </View>
 
           <TouchableOpacity
-            style={styles.verifyBtn}
+            style={[
+              styles.verifyBtn,
+              (timer > 0 || sendingOtp) && { opacity: 0.6 },
+            ]}
             onPress={handleSendOTP}
-            disabled={timer > 0}
+            disabled={timer > 0 || sendingOtp}
           >
             <Text style={{ fontSize: 12 }}>
-              {timer > 0 ? `Wait ${timer}s` : "Verify"}
+              {sendingOtp
+                ? "Sending..."
+                : timer > 0
+                  ? `Wait ${timer}s`
+                  : "Verify"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -182,7 +194,10 @@ export default function ForgotPassword() {
         {timer > 0 ? (
           <Text style={styles.timerText}>Resend OTP in {timer}s</Text>
         ) : (
-          <TouchableOpacity onPress={handleSendOTP}>
+          <TouchableOpacity
+            onPress={handleSendOTP}
+            disabled={timer > 0 || sendingOtp}
+          >
             <Text style={styles.resendText}>Resend OTP</Text>
           </TouchableOpacity>
         )}
