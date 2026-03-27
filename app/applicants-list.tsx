@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
 import {
   KColors as Colors,
@@ -22,8 +23,10 @@ const API_URL = "http://172.27.16.252:8030";
 
 type ApplicationItem = {
   _id: string;
-  workerId: string;
+  workerId: any;
   status?: string;
+  expectedPay?: number;
+  createdAt?: string;
 };
 
 type ReferralItem = {
@@ -395,5 +398,29 @@ const styles = StyleSheet.create({
   emptyMiniText: {
     fontSize: 14,
     color: Colors.textMuted,
+  },
+  acceptBtn: {
+    flex: 1,
+    backgroundColor: "#2E7D32",
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  acceptBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
+  },
+  rejectBtn: {
+    flex: 1,
+    backgroundColor: "#C62828",
+    borderRadius: Radius.full,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  rejectBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 });
