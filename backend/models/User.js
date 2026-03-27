@@ -26,28 +26,7 @@ const userSchema = new mongoose.Schema({
 
 // ================= REFERRALS =================
 userSchema.add({
-    referrals: [{
-        workerName: {
-            type: String,
-            required: true,
-        },
-        workerPhone: {
-            type: String,
-            required: true,
-        },
-        skills: [{
-            type: String,
-        }],
-        jobId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Job",
-            required: true,
-        },
-        createdAt: {
-            type: Date,
-            default: Date.now,
-        },
-    }],
+    referrals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Referral" }],
 });
 
 export default mongoose.model("User", userSchema);

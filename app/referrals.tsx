@@ -29,9 +29,8 @@ type ReferralItem = {
   createdAt?: string;
   jobId?: {
     _id: string;
-    title?: string;
     category?: string;
-    company?: string;
+    description?: string;
   };
 };
 
@@ -49,9 +48,8 @@ function ReferralCard({ item }: { item: ReferralItem }) {
       : "No skills added";
 
   const referredFor =
-    item.jobId?.title ||
     item.jobId?.category ||
-    item.jobId?.company ||
+    item.jobId?.description ||
     "Job not available";
 
   return (
@@ -103,7 +101,7 @@ export default function ReferralsScreen() {
         return;
       }
 
-      const res = await fetch(`${BASE_URL}/referral`, {
+      const res = await fetch(`${BASE_URL}/referrals`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -91,7 +91,7 @@ export default function ApplicationListScreen() {
             Authorization: `Bearer ${token}`,
           },
         }),
-        fetch(`${API_URL}/api/referral`, {
+        fetch(`${API_URL}/api/referrals`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

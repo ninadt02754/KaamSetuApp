@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { Base_Url , API_BASE} from "../../constants/Config";
 import {
   ActivityIndicator,
   Alert,
@@ -15,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Base_Url } from "../../constants/Config";
 import {
   KColors as Colors,
   Radius,
@@ -49,7 +49,10 @@ function Avatar({
     />
   ) : (
     <View
-      style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}
+      style={[
+        styles.avatar,
+        { width: size, height: size, borderRadius: size / 2 },
+      ]}
     >
       <Text style={[styles.avatarText, { fontSize: size * 0.35 }]}>
         {initials}
@@ -90,7 +93,11 @@ function SectionHeader({ title }: { title: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string }> = {
-    pending: { label: "Pending", bg: Colors.warningLight, color: Colors.warning },
+    pending: {
+      label: "Pending",
+      bg: Colors.warningLight,
+      color: Colors.warning,
+    },
     in_progress: {
       label: "Work in Progress",
       bg: Colors.successLight,
@@ -102,8 +109,16 @@ function StatusBadge({ status }: { status: string }) {
       color: Colors.success,
     },
     completed: { label: "Completed", bg: "#E3F2FD", color: "#1565C0" },
-    cancelled: { label: "Cancelled", bg: Colors.errorLight, color: Colors.error },
-    accepted: { label: "Accepted", bg: Colors.successLight, color: Colors.success },
+    cancelled: {
+      label: "Cancelled",
+      bg: Colors.errorLight,
+      color: Colors.error,
+    },
+    accepted: {
+      label: "Accepted",
+      bg: Colors.successLight,
+      color: Colors.success,
+    },
     rejected: { label: "Rejected", bg: Colors.errorLight, color: Colors.error },
   };
 
@@ -166,8 +181,8 @@ type ReferralType = {
   createdAt?: string;
   jobId?: {
     _id: string;
-    title?: string;
-    company?: string;
+    category?: string;
+    description?: string;
   };
 };
 
@@ -186,7 +201,9 @@ export default function AccountScreen() {
 
   // WORKER state
   const [myApplications, setMyApplications] = useState<ApplicationType[]>([]);
-  const [myPastApplications, setMyPastApplications] = useState<ApplicationType[]>([]);
+  const [myPastApplications, setMyPastApplications] = useState<
+    ApplicationType[]
+  >([]);
   const [myReferrals, setMyReferrals] = useState<ReferralType[]>([]);
 
   // ─── Load Data ──────────────────────────────────────────────────────────
@@ -203,11 +220,10 @@ export default function AccountScreen() {
       }
 
       const parsedUser: UserType = JSON.parse(userString);
+      const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch fresh user data from API to get updated rating
-      const userRes = await fetch(`${API_URL}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Fetch fresh user data
+      const userRes = await fetch(`${API_URL}/api/auth/me`, { headers });
       if (userRes.ok) {
         const userData = await userRes.json();
         setUser(userData.user || parsedUser);
@@ -219,67 +235,60 @@ export default function AccountScreen() {
         setUser(parsedUser);
       }
 
-      const requestsRes = await fetch(
-        `${API_URL}/api/jobs/my-requests/${parsedUser._id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      if (userRes.ok) {
-        const userData = await userRes.json();
-        setUser(userData.user || parsedUser);
-        await AsyncStorage.setItem("user", JSON.stringify(userData.user || parsedUser));
-      } else {
-        setUser(parsedUser);
-      }
-
-      const headers = { Authorization: `Bearer ${token}` };
-
       if (parsedUser.role === "worker") {
         // ── WORKER: fetch current apps + past apps + referrals + job requests ──
-        const [appsRes, pastAppsRes, referralsRes, requestsRes, pastRequestsRes] = await Promise.all([
-          fetch(`${API_URL}/api/applications/my-applications`,              { headers }),
-          fetch(`${API_URL}/api/applications/my-past-applications`,         { headers }),
-          fetch(`${API_URL}/api/referral`,                                  { headers }),
-          fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`,        { headers }),
-          fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`,   { headers }),
-        ]);
+                  const [appsRes, referralsRes, requestsRes, pastRequestsRes] = await Promise.all([
+            fetch(`${API_URL}/api/applications/my-applications`, { headers }),
+            fetch(`${API_URL}/api/referrals`, { headers }),
+            fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, { headers }),
+            fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, { headers }),
+          ]);
 
-        const appsData        = await appsRes.json();
-        const pastAppsData    = await pastAppsRes.json();
-        const referralsData   = await referralsRes.json();
-        const requestsData    = await requestsRes.json();
-        const pastRequestsData= await pastRequestsRes.json();
+          const [appsData, referralsData, requestsData, pastRequestsData] = await Promise.all([
+            appsRes.json(),
+            referralsRes.json(),
+            requestsRes.json(),
+            pastRequestsRes.json(),
+          ]);
 
-        setMyApplications(appsRes.ok ? appsData.applications || [] : []);
-        setMyPastApplications(
-          pastAppsRes.ok ? pastAppsData.applications || [] : [],
-        );
-        setMyReferrals(
+          const allApps = appsRes.ok ? (appsData.applications ?? []) : [];
+          setMyApplications(allApps.filter((a: ApplicationType) => 
+            a.status === "pending" || a.status === "accepted"
+          ));
+          setMyPastApplications(allApps.filter((a: ApplicationType) => 
+            a.status === "rejected" || a.status === "completed"
+          ));
+                  setMyReferrals(
           referralsRes.ok && Array.isArray(referralsData.referrals)
             ? referralsData.referrals
             : [],
         );
         setMyRequests(
-          requestsRes.ok && Array.isArray(requestsData) ? requestsData : []
+          requestsRes.ok && Array.isArray(requestsData) ? requestsData : [],
         );
         setMyPastRequests(
-          pastRequestsRes.ok && Array.isArray(pastRequestsData) ? pastRequestsData : []
+          pastRequestsRes.ok && Array.isArray(pastRequestsData)
+            ? pastRequestsData
+            : [],
         );
       } else {
         // ── USER (employer): fetch current jobs + past jobs + referrals ──
         const [requestsRes, pastRequestsRes, referralsRes] = await Promise.all([
-          fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`,      { headers }),
-          fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, { headers }),
-          fetch(`${API_URL}/api/referral`,                                { headers }),
+          fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, {
+            headers,
+          }),
+          fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, {
+            headers,
+          }),
+          fetch(`${API_URL}/api/referrals`, { headers }),
         ]);
 
-        const requestsData = await requestsRes.json();
-        const pastRequestsData = await pastRequestsRes.json();
-        const referralsData    = await referralsRes.json();
+        const [requestsData, pastRequestsData, referralsData] =
+          await Promise.all([
+            requestsRes.json(),
+            pastRequestsRes.json(),
+            referralsRes.json(),
+          ]);
 
         setMyRequests(
           requestsRes.ok && Array.isArray(requestsData) ? requestsData : [],
@@ -292,7 +301,7 @@ export default function AccountScreen() {
         setMyReferrals(
           referralsRes.ok && Array.isArray(referralsData.referrals)
             ? referralsData.referrals
-            : []
+            : [],
         );
       }
     } catch (error) {
@@ -301,7 +310,7 @@ export default function AccountScreen() {
       setLoading(false);
     }
   };
-  // ✅ REPLACE WITH THIS
+
   useFocusEffect(
     useCallback(() => {
       const loadFreshUser = async () => {
@@ -372,7 +381,10 @@ export default function AccountScreen() {
                 Alert.alert("Error", data.error || "Failed to delete the job.");
               }
             } catch {
-              Alert.alert("Error", "A network error occurred while trying to delete.");
+              Alert.alert(
+                "Error",
+                "A network error occurred while trying to delete.",
+              );
             }
           },
         },
@@ -391,10 +403,13 @@ export default function AccountScreen() {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem("token");
-              const response = await fetch(`${API_URL}/api/jobs/${jobId}/complete`, {
-                method: "PATCH",
-                headers: { Authorization: `Bearer ${token}` },
-              });
+              const response = await fetch(
+                `${API_URL}/api/jobs/${jobId}/complete`,
+                {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
               const data = await response.json();
 
               if (response.ok) {
@@ -402,7 +417,10 @@ export default function AccountScreen() {
                 setMyPastRequests((prev) => [data.job, ...prev]);
                 Alert.alert("Success", "Job marked as completed!");
               } else {
-                Alert.alert("Error", data.error || "Failed to complete the job.");
+                Alert.alert(
+                  "Error",
+                  data.error || "Failed to complete the job.",
+                );
               }
             } catch {
               Alert.alert("Error", "A network error occurred.");
@@ -427,7 +445,10 @@ export default function AccountScreen() {
               const token = await AsyncStorage.getItem("token");
               const response = await fetch(
                 `${API_URL}/api/applications/withdraw/${applicationId}`,
-                { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+                {
+                  method: "DELETE",
+                  headers: { Authorization: `Bearer ${token}` },
+                },
               );
               const data = await response.json();
 
@@ -506,7 +527,10 @@ export default function AccountScreen() {
               const token = await AsyncStorage.getItem("token");
               const response = await fetch(
                 `${API_URL}/api/applications/delete/${applicationId}`,
-                { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+                {
+                  method: "DELETE",
+                  headers: { Authorization: `Bearer ${token}` },
+                },
               );
               const data = await response.json();
 
@@ -515,7 +539,10 @@ export default function AccountScreen() {
                   prev.filter((a) => a._id !== applicationId),
                 );
               } else {
-                Alert.alert("Error", data.message || "Failed to remove record.");
+                Alert.alert(
+                  "Error",
+                  data.message || "Failed to remove record.",
+                );
               }
             } catch {
               Alert.alert("Error", "A network error occurred.");
@@ -545,85 +572,87 @@ export default function AccountScreen() {
   const renderUserSections = () => (
     <>
       <SectionHeader title="My Requests" />
-      {loading ? renderLoadingSpinner() : myRequests.length === 0 ? (
-        renderEmpty("No active requests found.")
-      ) : (
-        myRequests.map((job) => (
-          <View key={job._id} style={styles.requestCard}>
-            {(job.status || "").toLowerCase() === "pending" && (
-              <TouchableOpacity
-                style={styles.topRightDeleteBtn}
-                onPress={() => handleDeleteJob(job._id)}
-              >
-                <Text style={styles.topRightDeleteIcon}>🗑️</Text>
-              </TouchableOpacity>
-            )}
+      {loading
+        ? renderLoadingSpinner()
+        : myRequests.length === 0
+          ? renderEmpty("No active requests found.")
+          : myRequests.map((job) => (
+              <View key={job._id} style={styles.requestCard}>
+                {(job.status || "").toLowerCase() === "pending" && (
+                  <TouchableOpacity
+                    style={styles.topRightDeleteBtn}
+                    onPress={() => handleDeleteJob(job._id)}
+                  >
+                    <Text style={styles.topRightDeleteIcon}>🗑️</Text>
+                  </TouchableOpacity>
+                )}
 
-            <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
-              {job.category}
-            </Text>
-            <Text style={styles.requestSub}>{job.description}</Text>
-            <Text style={styles.requestSub}>📍 {job.address}</Text>
-            <StatusBadge status={job.status} />
+                <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
+                  {job.category}
+                </Text>
+                <Text style={styles.requestSub}>{job.description}</Text>
+                <Text style={styles.requestSub}>📍 {job.address}</Text>
+                <StatusBadge status={job.status} />
 
-            {job.noBudget ? (
-              <Text style={styles.requestSub}>Budget: Not specified</Text>
-            ) : (
-              <Text style={styles.requestSub}>
-                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
-              </Text>
-            )}
+                {job.noBudget ? (
+                  <Text style={styles.requestSub}>Budget: Not specified</Text>
+                ) : (
+                  <Text style={styles.requestSub}>
+                    💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
+                  </Text>
+                )}
 
-            <TouchableOpacity
-              style={styles.outlineBtn}
-              onPress={() => router.push(`/applications?jobId=${job._id}`)}
-            >
-              <Text style={styles.outlineBtnText}>View Applicants</Text>
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.outlineBtn}
+                  onPress={() => router.push(`/applications?jobId=${job._id}`)}
+                >
+                  <Text style={styles.outlineBtnText}>View Applicants</Text>
+                </TouchableOpacity>
 
-            {["in_progress", "in-progress"].includes(
-              (job.status || "").toLowerCase(),
-            ) && (
-              <TouchableOpacity
-                style={styles.completeBtn}
-                onPress={() => handleCompleteJob(job._id)}
-              >
-                <Text style={styles.completeBtnText}>✅ Mark as Completed</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))
-      )}
+                {["in_progress", "in-progress"].includes(
+                  (job.status || "").toLowerCase(),
+                ) && (
+                  <TouchableOpacity
+                    style={styles.completeBtn}
+                    onPress={() => handleCompleteJob(job._id)}
+                  >
+                    <Text style={styles.completeBtnText}>
+                      ✅ Mark as Completed
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
 
       <SectionHeader title="Past Requests" />
-      {loading ? renderLoadingSpinner() : myPastRequests.length === 0 ? (
-        renderEmpty("No past requests found.")
-      ) : (
-        myPastRequests.map((job) => (
-          <View key={job._id} style={[styles.requestCard, styles.pastCard]}>
-            <Text style={styles.requestTitle}>{job.category}</Text>
-            <Text style={styles.requestSub}>{job.description}</Text>
-            <Text style={styles.requestSub}>📍 {job.address}</Text>
-            <StatusBadge status={job.status} />
+      {loading
+        ? renderLoadingSpinner()
+        : myPastRequests.length === 0
+          ? renderEmpty("No past requests found.")
+          : myPastRequests.map((job) => (
+              <View key={job._id} style={[styles.requestCard, styles.pastCard]}>
+                <Text style={styles.requestTitle}>{job.category}</Text>
+                <Text style={styles.requestSub}>{job.description}</Text>
+                <Text style={styles.requestSub}>📍 {job.address}</Text>
+                <StatusBadge status={job.status} />
 
-            {job.noBudget ? (
-              <Text style={styles.requestSub}>Budget: Not specified</Text>
-            ) : (
-              <Text style={styles.requestSub}>
-                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
-              </Text>
-            )}
+                {job.noBudget ? (
+                  <Text style={styles.requestSub}>Budget: Not specified</Text>
+                ) : (
+                  <Text style={styles.requestSub}>
+                    💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
+                  </Text>
+                )}
 
-            {job.completedAt && (
-              <Text style={styles.requestSub}>
-                🗓 Completed: {new Date(job.completedAt).toLocaleDateString()}
-              </Text>
-            )}
-          </View>
-        ))
-      )}
+                {job.completedAt && (
+                  <Text style={styles.requestSub}>
+                    🗓 Completed:{" "}
+                    {new Date(job.completedAt).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+            ))}
 
-      {/* ── Referred Workers ── */}
       <SectionHeader title="Referred Workers" />
       {loading ? (
         <View style={styles.centered}>
@@ -632,7 +661,10 @@ export default function AccountScreen() {
       ) : myReferrals.length === 0 ? (
         renderEmpty("No referred workers found.")
       ) : (
-        <TouchableOpacity style={styles.quickCard} onPress={handleOpenReferrals}>
+        <TouchableOpacity
+          style={styles.quickCard}
+          onPress={handleOpenReferrals}
+        >
           <Text style={styles.quickCardTitle}>Referred Workers</Text>
           <Text style={styles.quickCardSub}>
             {myReferrals.length} referred worker(s) — tap to view
@@ -646,166 +678,169 @@ export default function AccountScreen() {
 
   const renderWorkerSections = () => (
     <>
-      {/* ── My Current Requests ── */}
       <SectionHeader title="My Requests" />
-      {loading ? renderLoadingSpinner() : myRequests.length === 0 ? (
-        renderEmpty("No active requests found.")
-      ) : (
-        myRequests.map((job) => (
-          <View key={job._id} style={styles.requestCard}>
-            {(job.status || "").toLowerCase() === "pending" && (
-              <TouchableOpacity
-                style={styles.topRightDeleteBtn}
-                onPress={() => handleDeleteJob(job._id)}
-              >
-                <Text style={styles.topRightDeleteIcon}>🗑️</Text>
-              </TouchableOpacity>
-            )}
+      {loading
+        ? renderLoadingSpinner()
+        : myRequests.length === 0
+          ? renderEmpty("No active requests found.")
+          : myRequests.map((job) => (
+              <View key={job._id} style={styles.requestCard}>
+                {(job.status || "").toLowerCase() === "pending" && (
+                  <TouchableOpacity
+                    style={styles.topRightDeleteBtn}
+                    onPress={() => handleDeleteJob(job._id)}
+                  >
+                    <Text style={styles.topRightDeleteIcon}>🗑️</Text>
+                  </TouchableOpacity>
+                )}
 
-            <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
-              {job.category}
-            </Text>
-            <Text style={styles.requestSub}>{job.description}</Text>
-            <Text style={styles.requestSub}>📍 {job.address}</Text>
-            <StatusBadge status={job.status} />
+                <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
+                  {job.category}
+                </Text>
+                <Text style={styles.requestSub}>{job.description}</Text>
+                <Text style={styles.requestSub}>📍 {job.address}</Text>
+                <StatusBadge status={job.status} />
 
-            {job.noBudget ? (
-              <Text style={styles.requestSub}>Budget: Not specified</Text>
-            ) : (
-              <Text style={styles.requestSub}>
-                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
-              </Text>
-            )}
-
-            <TouchableOpacity
-              style={styles.outlineBtn}
-              onPress={() => router.push(`/applications?jobId=${job._id}`)}
-            >
-              <Text style={styles.outlineBtnText}>View Applicants</Text>
-            </TouchableOpacity>
-
-            {["in_progress", "in-progress"].includes(
-              (job.status || "").toLowerCase()
-            ) && (
-              <TouchableOpacity
-                style={styles.completeBtn}
-                onPress={() => handleCompleteJob(job._id)}
-              >
-                <Text style={styles.completeBtnText}>✅ Mark as Completed</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))
-      )}
-
-      {/* ── Past Requests ── */}
-      <SectionHeader title="Past Requests" />
-      {loading ? renderLoadingSpinner() : myPastRequests.length === 0 ? (
-        renderEmpty("No past requests found.")
-      ) : (
-        myPastRequests.map((job) => (
-          <View key={job._id} style={[styles.requestCard, styles.pastCard]}>
-            <Text style={styles.requestTitle}>{job.category}</Text>
-            <Text style={styles.requestSub}>{job.description}</Text>
-            <Text style={styles.requestSub}>📍 {job.address}</Text>
-            <StatusBadge status={job.status} />
-
-            {job.noBudget ? (
-              <Text style={styles.requestSub}>Budget: Not specified</Text>
-            ) : (
-              <Text style={styles.requestSub}>
-                💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
-              </Text>
-            )}
-
-            {job.completedAt && (
-              <Text style={styles.requestSub}>
-                🗓 Completed: {new Date(job.completedAt).toLocaleDateString()}
-              </Text>
-            )}
-          </View>
-        ))
-      )}
-
-      {/* ── My Current Applications ── */}
-      <SectionHeader title="My Applications" />
-      {loading ? renderLoadingSpinner() : myApplications.length === 0 ? (
-        renderEmpty("No active applications found.")
-      ) : (
-        myApplications.map((app) => (
-          <View key={app._id} style={styles.requestCard}>
-            <Text style={styles.requestTitle}>
-              {app.jobId?.category || "Job"}
-            </Text>
-            <Text style={styles.requestSub}>{app.jobId?.description}</Text>
-            {app.jobId?.address && (
-              <Text style={styles.requestSub}>📍 {app.jobId.address}</Text>
-            )}
-            <StatusBadge status={app.status} />
-            <Text style={styles.requestSub}>💰 Expected Pay: ₹{app.expectedPay}</Text>
-            <Text style={styles.requestSub}>
-              📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
-            </Text>
-
-            {app.status === "pending" ? (
-              <View style={styles.workerActionRow}>
-                <TouchableOpacity
-                  style={styles.chatBtn}
-                  onPress={() => handleOpenChat(app)}
-                >
-                  <Text style={styles.chatBtnText}>Chat</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.dangerOutlineBtnCompact}
-                  onPress={() => handleWithdrawApplication(app._id)}
-                >
-                  <Text style={styles.dangerOutlineBtnText}>
-                    Withdraw
+                {job.noBudget ? (
+                  <Text style={styles.requestSub}>Budget: Not specified</Text>
+                ) : (
+                  <Text style={styles.requestSub}>
+                    💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
                   </Text>
+                )}
+
+                <TouchableOpacity
+                  style={styles.outlineBtn}
+                  onPress={() => router.push(`/applications?jobId=${job._id}`)}
+                >
+                  <Text style={styles.outlineBtnText}>View Applicants</Text>
                 </TouchableOpacity>
+
+                {["in_progress", "in-progress"].includes(
+                  (job.status || "").toLowerCase(),
+                ) && (
+                  <TouchableOpacity
+                    style={styles.completeBtn}
+                    onPress={() => handleCompleteJob(job._id)}
+                  >
+                    <Text style={styles.completeBtnText}>
+                      ✅ Mark as Completed
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.chatBtnSingle}
-                onPress={() => handleOpenChat(app)}
-              >
-                <Text style={styles.chatBtnText}>Chat</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        ))
-      )}
+            ))}
+
+      <SectionHeader title="Past Requests" />
+      {loading
+        ? renderLoadingSpinner()
+        : myPastRequests.length === 0
+          ? renderEmpty("No past requests found.")
+          : myPastRequests.map((job) => (
+              <View key={job._id} style={[styles.requestCard, styles.pastCard]}>
+                <Text style={styles.requestTitle}>{job.category}</Text>
+                <Text style={styles.requestSub}>{job.description}</Text>
+                <Text style={styles.requestSub}>📍 {job.address}</Text>
+                <StatusBadge status={job.status} />
+
+                {job.noBudget ? (
+                  <Text style={styles.requestSub}>Budget: Not specified</Text>
+                ) : (
+                  <Text style={styles.requestSub}>
+                    💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
+                  </Text>
+                )}
+
+                {job.completedAt && (
+                  <Text style={styles.requestSub}>
+                    🗓 Completed:{" "}
+                    {new Date(job.completedAt).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+            ))}
+
+      <SectionHeader title="My Applications" />
+      {loading
+        ? renderLoadingSpinner()
+        : myApplications.length === 0
+          ? renderEmpty("No active applications found.")
+          : myApplications.map((app) => (
+              <View key={app._id} style={styles.requestCard}>
+                <Text style={styles.requestTitle}>
+                  {app.jobId?.category || "Job"}
+                </Text>
+                <Text style={styles.requestSub}>{app.jobId?.description}</Text>
+                {app.jobId?.address && (
+                  <Text style={styles.requestSub}>📍 {app.jobId.address}</Text>
+                )}
+                <StatusBadge status={app.status} />
+                <Text style={styles.requestSub}>
+                  💰 Expected Pay: ₹{app.expectedPay}
+                </Text>
+                <Text style={styles.requestSub}>
+                  📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
+                </Text>
+
+                {app.status === "pending" ? (
+                  <View style={styles.workerActionRow}>
+                    <TouchableOpacity
+                      style={styles.chatBtn}
+                      onPress={() => handleOpenChat(app)}
+                    >
+                      <Text style={styles.chatBtnText}>Chat</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.dangerOutlineBtnCompact}
+                      onPress={() => handleWithdrawApplication(app._id)}
+                    >
+                      <Text style={styles.dangerOutlineBtnText}>Withdraw</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.chatBtnSingle}
+                    onPress={() => handleOpenChat(app)}
+                  >
+                    <Text style={styles.chatBtnText}>Chat</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
 
       <SectionHeader title="Past Applications" />
-      {loading ? renderLoadingSpinner() : myPastApplications.length === 0 ? (
-        renderEmpty("No past applications found.")
-      ) : (
-        myPastApplications.map((app) => (
-          <View key={app._id} style={[styles.requestCard, styles.pastCard]}>
-            <TouchableOpacity
-              style={styles.topRightDeleteBtn}
-              onPress={() => handleDeletePastApplication(app._id)}
-            >
-              <Text style={styles.topRightDeleteIcon}>🗑️</Text>
-            </TouchableOpacity>
+      {loading
+        ? renderLoadingSpinner()
+        : myPastApplications.length === 0
+          ? renderEmpty("No past applications found.")
+          : myPastApplications.map((app) => (
+              <View key={app._id} style={[styles.requestCard, styles.pastCard]}>
+                <TouchableOpacity
+                  style={styles.topRightDeleteBtn}
+                  onPress={() => handleDeletePastApplication(app._id)}
+                >
+                  <Text style={styles.topRightDeleteIcon}>🗑️</Text>
+                </TouchableOpacity>
 
-            <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
-              {app.jobId?.category || "Job"}
-            </Text>
-            <StatusBadge status={app.status} />
-            <Text style={styles.requestSub}>💰 Expected Pay: ₹{app.expectedPay}</Text>
-            <Text style={styles.requestSub}>
-              📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
-            </Text>
-            {app.completedAt && (
-              <Text style={styles.requestSub}>
-                🗓 Completed: {new Date(app.completedAt).toLocaleDateString()}
-              </Text>
-            )}
-          </View>
-        ))
-      )}
+                <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
+                  {app.jobId?.category || "Job"}
+                </Text>
+                <StatusBadge status={app.status} />
+                <Text style={styles.requestSub}>
+                  💰 Expected Pay: ₹{app.expectedPay}
+                </Text>
+                <Text style={styles.requestSub}>
+                  📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
+                </Text>
+                {app.completedAt && (
+                  <Text style={styles.requestSub}>
+                    🗓 Completed:{" "}
+                    {new Date(app.completedAt).toLocaleDateString()}
+                  </Text>
+                )}
+              </View>
+            ))}
 
       <SectionHeader title="Referred Workers" />
       {loading ? (
@@ -815,7 +850,10 @@ export default function AccountScreen() {
       ) : myReferrals.length === 0 ? (
         renderEmpty("No referred workers found.")
       ) : (
-        <TouchableOpacity style={styles.quickCard} onPress={handleOpenReferrals}>
+        <TouchableOpacity
+          style={styles.quickCard}
+          onPress={handleOpenReferrals}
+        >
           <Text style={styles.quickCardTitle}>Referred Workers</Text>
           <Text style={styles.quickCardSub}>
             {myReferrals.length} referred worker(s) — tap to view
@@ -846,7 +884,9 @@ export default function AccountScreen() {
             <Avatar
               name={user?.name || "User"}
               profileImage={
-                user?.profileImage ? `${API_URL}${user.profileImage}` : undefined
+                user?.profileImage
+                  ? `${API_URL}${user.profileImage}`
+                  : undefined
               }
               size={72}
             />
@@ -856,7 +896,10 @@ export default function AccountScreen() {
                 <Text style={styles.profileName}>
                   {user?.name || "Loading..."}
                 </Text>
-                <TouchableOpacity onPress={handleUpdateProfile} style={styles.editIcon}>
+                <TouchableOpacity
+                  onPress={handleUpdateProfile}
+                  style={styles.editIcon}
+                >
                   <Text style={styles.editIconText}>✏️</Text>
                 </TouchableOpacity>
               </View>
@@ -880,7 +923,9 @@ export default function AccountScreen() {
                       styles.roleBadgeText,
                       {
                         color:
-                          user.role === "worker" ? Colors.primary : Colors.warning,
+                          user.role === "worker"
+                            ? Colors.primary
+                            : Colors.warning,
                       },
                     ]}
                   >
@@ -901,20 +946,29 @@ export default function AccountScreen() {
                   </View>
                 )}
 
-              <Text style={styles.profileText}>Email: {user?.email || "-"}</Text>
-              <Text style={styles.profileText}>Phone: {user?.phone || "-"}</Text>
+              <Text style={styles.profileText}>
+                Email: {user?.email || "-"}
+              </Text>
+              <Text style={styles.profileText}>
+                Phone: {user?.phone || "-"}
+              </Text>
               <Text style={styles.profileText}>
                 Address: {user?.address?.trim() ? user.address : "-"}
               </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleUpdateProfile}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleUpdateProfile}
+          >
             <Text style={styles.primaryBtnText}>Update Profile</Text>
           </TouchableOpacity>
         </View>
 
-        {user?.role === "worker" ? renderWorkerSections() : renderUserSections()}
+        {user?.role === "worker"
+          ? renderWorkerSections()
+          : renderUserSections()}
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutBtnText}>Logout</Text>
@@ -1144,6 +1198,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
     ...Shadow.sm,
   },
-  quickCardTitle: { fontSize: 16, fontWeight: "700", color: Colors.textPrimary },
+  quickCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.textPrimary,
+  },
   quickCardSub: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
 });
