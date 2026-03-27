@@ -33,7 +33,12 @@ function StarRatingInput({
     <View style={{ flexDirection: "row", gap: 6 }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <TouchableOpacity key={i} onPress={() => onRate(i)}>
-          <Text style={{ fontSize: 28, color: i <= rating ? Colors.starGold : "#DDD" }}>
+          <Text
+            style={{
+              fontSize: 28,
+              color: i <= rating ? Colors.starGold : "#DDD",
+            }}
+          >
             ★
           </Text>
         </TouchableOpacity>
@@ -54,11 +59,14 @@ export default function ApplicationsScreen() {
   const [rating, setRating] = useState(0);
   const [review, setReview] = useState("");
   const [applications, setApplications] = useState<any[]>([]);
-  const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
+  const [ratingModal, setRatingModal] = useState<{
+    visible: boolean;
+    appId: string;
+  }>({
     visible: false,
     appId: "",
   });
-  const BASE_URL = "http://172.24.211.145:8000/api";
+  const BASE_URL = "http://172.24.209.42:8000/api";
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const fetchApplications = async () => {
@@ -81,8 +89,12 @@ export default function ApplicationsScreen() {
     fetchApplications();
   }, [jobId]);
 
-  const acceptedApps = (applications || []).filter((a) => a.status === "accepted");
-  const requestedApps = (applications || []).filter((a) => a.status === "pending");
+  const acceptedApps = (applications || []).filter(
+    (a) => a.status === "accepted",
+  );
+  const requestedApps = (applications || []).filter(
+    (a) => a.status === "pending",
+  );
 
   const handleEndWork = (applicationId: string) => {
     setRatingModal({ visible: true, appId: applicationId });
@@ -107,7 +119,9 @@ export default function ApplicationsScreen() {
       const data = await res.json();
       if (res.ok) {
         setRatingModal({ visible: false, appId: "" });
-        setApplications((prev: any[]) => prev.filter((a: any) => a._id !== appId));
+        setApplications((prev: any[]) =>
+          prev.filter((a: any) => a._id !== appId),
+        );
         setRating(0);
         setReview("");
         Alert.alert("Thank you!", "Your rating has been submitted.");
@@ -143,10 +157,13 @@ export default function ApplicationsScreen() {
   const handleAccept = async (applicationId: string) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/applications/accept/${applicationId}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${BASE_URL}/applications/accept/${applicationId}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const data = await res.json();
       if (res.ok) {
         Alert.alert("Success", "Worker accepted!");
@@ -162,10 +179,13 @@ export default function ApplicationsScreen() {
   const handleReject = async (applicationId: string) => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`${BASE_URL}/applications/reject/${applicationId}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `${BASE_URL}/applications/reject/${applicationId}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const data = await res.json();
       if (res.ok) {
         Alert.alert("Success", "Worker rejected!");
@@ -203,7 +223,12 @@ export default function ApplicationsScreen() {
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </Text>
             <View style={[styles.tabBadge, tab === t && styles.tabBadgeActive]}>
-              <Text style={[styles.tabBadgeText, tab === t && { color: Colors.white }]}>
+              <Text
+                style={[
+                  styles.tabBadgeText,
+                  tab === t && { color: Colors.white },
+                ]}
+              >
                 {t === "accepted" ? acceptedApps.length : requestedApps.length}
               </Text>
             </View>
@@ -211,7 +236,10 @@ export default function ApplicationsScreen() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {tab === "accepted" ? (
           acceptedApps.length === 0 ? (
             <View style={styles.empty}>
@@ -267,7 +295,9 @@ export default function ApplicationsScreen() {
           )
         ) : requestedApps.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>No pending/rejected applications.</Text>
+            <Text style={styles.emptyText}>
+              No pending/rejected applications.
+            </Text>
           </View>
         ) : (
           requestedApps.map((app) => (
@@ -286,10 +316,16 @@ export default function ApplicationsScreen() {
                   <Text
                     style={[
                       styles.statusText,
-                      { color: app.status === "rejected" ? Colors.error : Colors.warning },
+                      {
+                        color:
+                          app.status === "rejected"
+                            ? Colors.error
+                            : Colors.warning,
+                      },
                     ]}
                   >
-                    Status: {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                    Status:{" "}
+                    {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                   </Text>
                 </View>
                 <StatusIcon status={app.status} />
@@ -298,14 +334,22 @@ export default function ApplicationsScreen() {
               <Text style={styles.jobMeta}>
                 Applied: {new Date(app.createdAt).toLocaleDateString()}
               </Text>
-              <Text style={styles.jobMeta}>Expected Pay: ₹{app.expectedPay}</Text>
+              <Text style={styles.jobMeta}>
+                Expected Pay: ₹{app.expectedPay}
+              </Text>
 
               {app.status === "pending" && (
                 <View style={{ flexDirection: "row", gap: 10, marginTop: 10 }}>
-                  <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(app._id)}>
+                  <TouchableOpacity
+                    style={styles.acceptBtn}
+                    onPress={() => handleAccept(app._id)}
+                  >
                     <Text style={styles.acceptBtnText}>Accept</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.rejectBtn} onPress={() => handleReject(app._id)}>
+                  <TouchableOpacity
+                    style={styles.rejectBtn}
+                    onPress={() => handleReject(app._id)}
+                  >
                     <Text style={styles.rejectBtnText}>Reject</Text>
                   </TouchableOpacity>
                 </View>
@@ -336,10 +380,16 @@ export default function ApplicationsScreen() {
             />
 
             <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
-              <TouchableOpacity style={styles.skipBtn} onPress={handleSkipRating}>
+              <TouchableOpacity
+                style={styles.skipBtn}
+                onPress={handleSkipRating}
+              >
                 <Text style={styles.skipBtnText}>Skip</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.submitRatingBtn} onPress={handleRatingSubmit}>
+              <TouchableOpacity
+                style={styles.submitRatingBtn}
+                onPress={handleRatingSubmit}
+              >
                 <Text style={styles.submitRatingText}>Submit & End</Text>
               </TouchableOpacity>
             </View>
@@ -361,7 +411,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   backBtn: { width: 36, justifyContent: "center" },
-  backText: { color: Colors.white, fontSize: 28, fontWeight: "300", lineHeight: 32 },
+  backText: {
+    color: Colors.white,
+    fontSize: 28,
+    fontWeight: "300",
+    lineHeight: 32,
+  },
   headerTitle: { color: Colors.white, fontSize: 18, fontWeight: "700" },
 
   tabBar: {
@@ -442,7 +497,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   detailRow: { flexDirection: "row", gap: 8 },
-  detailKey: { width: 80, fontSize: 12, fontWeight: "700", color: Colors.textSecondary },
+  detailKey: {
+    width: 80,
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+  },
   detailVal: { flex: 1, fontSize: 12, color: Colors.textPrimary },
 
   endWorkBtn: {

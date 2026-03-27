@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   SafeAreaView,
   StatusBar,
@@ -10,7 +11,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
 } from "react-native";
 import {
   KColors as Colors,
@@ -44,7 +44,7 @@ export default function ApplicationListScreen() {
       }
 
       const res = await fetch(
-        `http://172.24.211.145:8000/api/applications/job/${jobId}`,
+        `http://172.24.209.42:8000/api/applications/job/${jobId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -73,42 +73,42 @@ export default function ApplicationListScreen() {
   }, [jobId]);
 
   const handleAccept = async (applicationId: string) => {
-  try {
-    const token = await AsyncStorage.getItem("token");
-    const res = await fetch(
-      `http://172.24.211.145:8000/api/applications/accept/${applicationId}`,
-      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await res.json();
-    if (res.ok) {
-      Alert.alert("Success", "Worker accepted!");
-      fetchApplications();
-    } else {
-      Alert.alert("Error", data.message || "Failed to accept");
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(
+        `http://172.24.209.42:8000/api/applications/accept/${applicationId}`,
+        { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert("Success", "Worker accepted!");
+        fetchApplications();
+      } else {
+        Alert.alert("Error", data.message || "Failed to accept");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Something went wrong");
     }
-  } catch (err) {
-    Alert.alert("Error", "Something went wrong");
-  }
-};
+  };
 
-const handleReject = async (applicationId: string) => {
-  try {
-    const token = await AsyncStorage.getItem("token");
-    const res = await fetch(
-      `http://172.24.211.145:8000/api/applications/reject/${applicationId}`,
-      { method: "PUT", headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await res.json();
-    if (res.ok) {
-      Alert.alert("Success", "Worker rejected!");
-      fetchApplications();
-    } else {
-      Alert.alert("Error", data.message || "Failed to reject");
+  const handleReject = async (applicationId: string) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(
+        `http://172.24.209.42:8000/api/applications/reject/${applicationId}`,
+        { method: "PUT", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert("Success", "Worker rejected!");
+        fetchApplications();
+      } else {
+        Alert.alert("Error", data.message || "Failed to reject");
+      }
+    } catch (err) {
+      Alert.alert("Error", "Something went wrong");
     }
-  } catch (err) {
-    Alert.alert("Error", "Something went wrong");
-  }
-};
+  };
 
   const renderItem = ({ item }: { item: ApplicationItem }) => {
     return (

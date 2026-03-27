@@ -20,7 +20,7 @@ import {
 } from "../../constants/kaamsetuTheme";
 import { referrals } from "../../constants/mockData";
 
-const API_URL = "http://172.24.211.145:8000";
+const API_URL = "http://172.24.209.42:8000";
 
 // ─── Reusable Components ────────────────────────────────────────────────────
 
@@ -71,7 +71,13 @@ function StarRating({ rating }: { rating: number }) {
   return (
     <View style={styles.starsRow}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Text key={i} style={{ color: i <= Math.round(rating) ? Colors.starGold : "#DDD", fontSize: 14 }}>
+        <Text
+          key={i}
+          style={{
+            color: i <= Math.round(rating) ? Colors.starGold : "#DDD",
+            fontSize: 14,
+          }}
+        >
           ★
         </Text>
       ))}
@@ -126,8 +132,8 @@ type UserType = {
   address?: string;
   skills?: string[];
   rating?: number;
-  averageRating?: number;  // 👈 add this
-  totalRatings?: number;   // 👈 add this
+  averageRating?: number; // 👈 add this
+  totalRatings?: number; // 👈 add this
   profileImage?: string; // 🔥 ADD THIS
 };
 
@@ -162,17 +168,20 @@ export default function AccountScreen() {
 
       const parsedUser: UserType = JSON.parse(userString);
 
-// Fetch fresh user data from API to get updated rating
-const userRes = await fetch(`${API_URL}/api/auth/me`, {
-  headers: { Authorization: `Bearer ${token}` },
-});
-if (userRes.ok) {
-  const userData = await userRes.json();
-  setUser(userData.user || parsedUser);
-  await AsyncStorage.setItem("user", JSON.stringify(userData.user || parsedUser));
-} else {
-  setUser(parsedUser);
-}
+      // Fetch fresh user data from API to get updated rating
+      const userRes = await fetch(`${API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        setUser(userData.user || parsedUser);
+        await AsyncStorage.setItem(
+          "user",
+          JSON.stringify(userData.user || parsedUser),
+        );
+      } else {
+        setUser(parsedUser);
+      }
 
       const requestsRes = await fetch(
         `${API_URL}/api/jobs/my-requests/${parsedUser._id}`,
@@ -209,27 +218,27 @@ if (userRes.ok) {
     }
   };
   // ✅ REPLACE WITH THIS
- useFocusEffect(
-  useCallback(() => {
-    const loadFreshUser = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) return;
-        const res = await fetch(`${API_URL}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data.user);
-          await AsyncStorage.setItem("user", JSON.stringify(data.user));
+  useFocusEffect(
+    useCallback(() => {
+      const loadFreshUser = async () => {
+        try {
+          const token = await AsyncStorage.getItem("token");
+          if (!token) return;
+          const res = await fetch(`${API_URL}/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setUser(data.user);
+            await AsyncStorage.setItem("user", JSON.stringify(data.user));
+          }
+        } catch (err) {
+          console.log("Failed to refresh user:", err);
         }
-      } catch (err) {
-        console.log("Failed to refresh user:", err);
-      }
-    };
-    loadFreshUser();
-  }, []),
-);
+      };
+      loadFreshUser();
+    }, []),
+  );
 
   // if (!user) return null;
 
@@ -286,7 +295,7 @@ if (userRes.ok) {
                 </TouchableOpacity>
               </View>
 
-             <StarRating rating={user?.averageRating || 0} />
+              <StarRating rating={user?.averageRating || 0} />
 
               {/* Skills */}
               {user?.skills && user.skills.length > 0 && (

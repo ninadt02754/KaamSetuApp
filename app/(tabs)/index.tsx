@@ -19,7 +19,7 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
-const BASE_URL = "http://172.24.211.145:8000/api"; // ← same IP as login.tsx
+const BASE_URL = "http://172.24.209.42:8000/api"; // ← same IP as login.tsx
 
 const PURPLE = "#2196F3";
 const LIGHT_PURPLE = "#F3E5F5";
