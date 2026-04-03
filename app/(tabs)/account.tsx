@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -12,7 +13,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  Modal,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,8 +25,6 @@ import {
 } from "../../constants/kaamsetuTheme";
 
 const API_URL = Base_Url;
-
-// ─── Reusable Components ────────────────────────────────────────────────────
 
 function Avatar({
   name,
@@ -123,17 +121,13 @@ function StatusBadge({ status }: { status: string }) {
     },
     rejected: { label: "Rejected", bg: Colors.errorLight, color: Colors.error },
   };
-
   const s = map[status] ?? map.pending;
-
   return (
     <View style={[styles.badge, { backgroundColor: s.bg }]}>
       <Text style={[styles.badgeText, { color: s.color }]}>{s.label}</Text>
     </View>
   );
 }
-
-// ─── Types ──────────────────────────────────────────────────────────────────
 
 type UserType = {
   _id: string;
@@ -150,6 +144,7 @@ type UserType = {
   profileImage?: string;
   role?: string;
 };
+
 type JobType = {
   _id: string;
   category: string;
@@ -199,8 +194,6 @@ const safeJson = async (res: Response) => {
   }
 };
 
-// ─── Main Screen ────────────────────────────────────────────────────────────
-
 export default function AccountScreen() {
   const router = useRouter();
 
@@ -208,27 +201,40 @@ export default function AccountScreen() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserType | null>(null);
 
-  // USER (employer) state
   const [myRequests, setMyRequests] = useState<JobType[]>([]);
   const [myPastRequests, setMyPastRequests] = useState<JobType[]>([]);
-
-  // WORKER state
   const [myApplications, setMyApplications] = useState<ApplicationType[]>([]);
   const [myPastApplications, setMyPastApplications] = useState<
     ApplicationType[]
   >([]);
   const [myReferrals, setMyReferrals] = useState<ReferralType[]>([]);
-const [ratingModal, setRatingModal] = useState<{ visible: boolean; jobId: string; workerId: string }>({ visible: false, jobId: "", workerId: "" });
-const [employerRatingModal, setEmployerRatingModal] = useState<{ visible: boolean; employerId: string }>({ visible: false, employerId: "" });
-const [rating, setRating] = useState(0);
-const [review, setReview] = useState("");
-const [employerRating, setEmployerRating] = useState(0);
-const [employerReview, setEmployerReview] = useState("");
 
-  // ─── Load Data ──────────────────────────────────────────────────────────
+  // ── Referrals modal ──────────────────────────────────────────────────────
+  const [referralsModal, setReferralsModal] = useState(false);
 
+  const [ratingModal, setRatingModal] = useState<{
+    visible: boolean;
+    jobId: string;
+    workerId: string;
+  }>({ visible: false, jobId: "", workerId: "" });
+  const [employerRatingModal, setEmployerRatingModal] = useState<{
+    visible: boolean;
+    employerId: string;
+    applicationId: string;
+  }>({ visible: false, employerId: "", applicationId: "" });
+  const [rating, setRating] = useState(0);
+  const [review, setReview] = useState("");
+  const [employerRating, setEmployerRating] = useState(0);
+  const [employerReview, setEmployerReview] = useState("");
+  const [ratedApplicationIds, setRatedApplicationIds] = useState<Set<string>>(
+    new Set(),
+  );
   const loadAccountData = async () => {
     setLoading(true);
+    const storedRated = await AsyncStorage.getItem("ratedApplicationIds");
+    if (storedRated) {
+      setRatedApplicationIds(new Set(JSON.parse(storedRated)));
+    }
     try {
       const token = await AsyncStorage.getItem("token");
       const userString = await AsyncStorage.getItem("user");
@@ -241,7 +247,6 @@ const [employerReview, setEmployerReview] = useState("");
       const parsedUser: UserType = JSON.parse(userString);
       const headers = { Authorization: `Bearer ${token}` };
 
-      // Fetch fresh user data
       const userRes = await fetch(`${API_URL}/api/auth/me`, { headers });
       if (userRes.ok) {
         const userData = await userRes.json();
@@ -255,30 +260,43 @@ const [employerReview, setEmployerReview] = useState("");
       }
 
       if (parsedUser.role === "worker") {
-        // ── WORKER: fetch current apps + past apps + referrals + job requests ──
-                  const [appsRes, referralsRes, requestsRes, pastRequestsRes] = await Promise.all([
+        const [appsRes, referralsRes, requestsRes, pastRequestsRes] =
+          await Promise.all([
             fetch(`${API_URL}/api/applications/my-applications`, { headers }),
-            fetch(`${API_URL}/api/referrals`, { headers }),
-            fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, { headers }),
-            fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, { headers }),
+            fetch(`${API_URL}/api/referral`, { headers }),
+            fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, {
+              headers,
+            }),
+            fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, {
+              headers,
+            }),
           ]);
 
-          const [appsData, referralsData, requestsData, pastRequestsData] = await Promise.all([
-  safeJson(appsRes),
-  safeJson(referralsRes),
-  safeJson(requestsRes),
-  safeJson(pastRequestsRes),
-]);
+        const [appsData, referralsData, requestsData, pastRequestsData] =
+          await Promise.all([
+            safeJson(appsRes),
+            safeJson(referralsRes),
+            safeJson(requestsRes),
+            safeJson(pastRequestsRes),
+          ]);
 
-          const allApps = appsRes.ok ? (appsData.applications ?? []) : [];
-          setMyApplications(allApps.filter((a: ApplicationType) => 
-            a.status === "pending" || a.status === "accepted"
-          ));
-          setMyPastApplications(allApps.filter((a: ApplicationType) => 
-            a.status === "rejected" || a.status === "completed"
-          ));
-                  setMyReferrals(
-          referralsRes.ok && Array.isArray(referralsData.referrals)
+        const allApps = appsRes.ok ? (appsData.applications ?? []) : [];
+        setMyApplications(
+          allApps.filter(
+            (a: ApplicationType) =>
+              a.status === "pending" || a.status === "accepted",
+          ),
+        );
+        setMyPastApplications(
+          allApps.filter(
+            (a: ApplicationType) =>
+              a.status === "rejected" || a.status === "completed",
+          ),
+        );
+        setMyReferrals(
+          referralsRes.ok &&
+            referralsData &&
+            Array.isArray(referralsData.referrals)
             ? referralsData.referrals
             : [],
         );
@@ -291,7 +309,6 @@ const [employerReview, setEmployerReview] = useState("");
             : [],
         );
       } else {
-        // ── USER (employer): fetch current jobs + past jobs + referrals ──
         const [requestsRes, pastRequestsRes, referralsRes] = await Promise.all([
           fetch(`${API_URL}/api/jobs/my-requests/${parsedUser._id}`, {
             headers,
@@ -299,14 +316,15 @@ const [employerReview, setEmployerReview] = useState("");
           fetch(`${API_URL}/api/jobs/my-past-requests/${parsedUser._id}`, {
             headers,
           }),
-          fetch(`${API_URL}/api/referrals`, { headers }),
+          fetch(`${API_URL}/api/referral`, { headers }),
         ]);
 
-        const [requestsData, pastRequestsData, referralsData] = await Promise.all([
-  safeJson(requestsRes),
-  safeJson(pastRequestsRes),
-  safeJson(referralsRes),
-]);
+        const [requestsData, pastRequestsData, referralsData] =
+          await Promise.all([
+            safeJson(requestsRes),
+            safeJson(pastRequestsRes),
+            safeJson(referralsRes),
+          ]);
 
         setMyRequests(
           requestsRes.ok && Array.isArray(requestsData) ? requestsData : [],
@@ -317,7 +335,9 @@ const [employerReview, setEmployerReview] = useState("");
             : [],
         );
         setMyReferrals(
-          referralsRes.ok && Array.isArray(referralsData.referrals)
+          referralsRes.ok &&
+            referralsData &&
+            Array.isArray(referralsData.referrals)
             ? referralsData.referrals
             : [],
         );
@@ -363,8 +383,6 @@ const [employerReview, setEmployerReview] = useState("");
     }, []),
   );
 
-  // ─── Handlers ───────────────────────────────────────────────────────────
-
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("user");
@@ -372,7 +390,6 @@ const [employerReview, setEmployerReview] = useState("");
   };
 
   const handleUpdateProfile = () => router.push("/update-profile");
-  const handleOpenReferrals = () => router.push("/referrals");
 
   const handleDeleteJob = (jobId: string) => {
     Alert.alert(
@@ -391,7 +408,6 @@ const [employerReview, setEmployerReview] = useState("");
                 headers: { Authorization: `Bearer ${token}` },
               });
               const data = await response.json();
-
               if (response.ok) {
                 setMyRequests((prev) => prev.filter((j) => j._id !== jobId));
                 Alert.alert("Success", "Job deleted successfully.");
@@ -411,83 +427,66 @@ const [employerReview, setEmployerReview] = useState("");
   };
 
   const handleCompleteJob = (jobId: string) => {
-  Alert.alert(
-    "Mark as Completed",
-    "Confirm that the work has been done and mark this job as completed?",
-    [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Complete",
-        onPress: async () => {
-          try {
-            const token = await AsyncStorage.getItem("token");
-            const response = await fetch(
-              `${API_URL}/api/jobs/${jobId}/complete`,
-              {
-                method: "PATCH",
-                headers: { Authorization: `Bearer ${token}` },
-              },
-            );
-            const data = await response.json();
-if (response.ok) {
-  setMyRequests((prev) => prev.filter((j) => j._id !== jobId));
-  setMyPastRequests((prev) => [data.job, ...prev]);
-
-  if (data.workerId) {
-    setRatingModal({ visible: true, jobId, workerId: data.workerId.toString() });
-  } else {
-    Alert.alert("Success", "Job marked as completed!");
-  }
-} else {
-              Alert.alert("Error", data.error || "Failed to complete the job.");
+    Alert.alert(
+      "Mark as Completed",
+      "Confirm that the work has been done and mark this job as completed?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Complete",
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem("token");
+              const response = await fetch(
+                `${API_URL}/api/jobs/${jobId}/complete`,
+                {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${token}` },
+                },
+              );
+              const data = await response.json();
+              if (response.ok) {
+                setMyRequests((prev) => prev.filter((j) => j._id !== jobId));
+                setMyPastRequests((prev) => [data.job, ...prev]);
+                if (data.workerId) {
+                  setRatingModal({
+                    visible: true,
+                    jobId,
+                    workerId: data.workerId.toString(),
+                  });
+                } else {
+                  Alert.alert("Success", "Job marked as completed!");
+                }
+              } else {
+                Alert.alert(
+                  "Error",
+                  data.error || "Failed to complete the job.",
+                );
+              }
+            } catch {
+              Alert.alert("Error", "A network error occurred.");
             }
-          } catch {
-            Alert.alert("Error", "A network error occurred.");
-          }
+          },
         },
-      },
-    ],
-  );
-};
+      ],
+    );
+  };
 
-const handleRatingSubmit = async () => {
-  try {
-    const token = await AsyncStorage.getItem("token");
-    const res = await fetch(`${API_URL}/api/auth/rate-worker`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ workerId: ratingModal.workerId, rating, review }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      Alert.alert("Thank you!", "Rating submitted.");
-    } else {
-      Alert.alert("Error", data.message || "Failed to submit rating.");
-    }
-  } catch {
-    Alert.alert("Error", "Network error.");
-  } finally {
-    setRatingModal({ visible: false, jobId: "", workerId: "" });
-    setRating(0);
-    setReview("");
-    await loadAccountData();
-  }
-};
-
-const handleEmployerRatingSubmit = async () => {
+  const handleRatingSubmit = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/auth/rate-employer`, {
-  method: "POST",
-  headers: {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({ employerId: employerRatingModal.employerId, rating: employerRating, review: employerReview }),
-});
+      const res = await fetch(`${API_URL}/api/auth/rate-worker`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          workerId: ratingModal.workerId,
+          rating,
+          review,
+        }),
+      });
       const data = await res.json();
       if (res.ok) {
         Alert.alert("Thank you!", "Rating submitted.");
@@ -497,7 +496,54 @@ const handleEmployerRatingSubmit = async () => {
     } catch {
       Alert.alert("Error", "Network error.");
     } finally {
-      setEmployerRatingModal({ visible: false, employerId: "" });
+      setRatingModal({ visible: false, jobId: "", workerId: "" });
+      setRating(0);
+      setReview("");
+      await loadAccountData();
+    }
+  };
+
+  const handleEmployerRatingSubmit = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/auth/rate-employer`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          employerId: employerRatingModal.employerId,
+          rating: employerRating,
+          review: employerReview,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        Alert.alert("Thank you!", "Rating submitted.");
+      } else {
+        Alert.alert("Error", data.message || "Failed to submit rating.");
+      }
+    } catch {
+      Alert.alert("Error", "Network error.");
+    } finally {
+      const ratedId = employerRatingModal.applicationId;
+      if (ratedId) {
+        setRatedApplicationIds((prev) => {
+          const updated = new Set(prev);
+          updated.add(ratedId);
+          AsyncStorage.setItem(
+            "ratedApplicationIds",
+            JSON.stringify([...updated]),
+          );
+          return updated;
+        });
+      }
+      setEmployerRatingModal({
+        visible: false,
+        employerId: "",
+        applicationId: "",
+      });
       setEmployerRating(0);
       setEmployerReview("");
     }
@@ -523,7 +569,6 @@ const handleEmployerRatingSubmit = async () => {
                 },
               );
               const data = await response.json();
-
               if (response.ok) {
                 setMyApplications((prev) =>
                   prev.filter((a) => a._id !== applicationId),
@@ -545,20 +590,16 @@ const handleEmployerRatingSubmit = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
       const userString = await AsyncStorage.getItem("user");
-
       if (!token || !userString) {
         Alert.alert("Error", "Please login again.");
         return;
       }
-
       const parsedUser = JSON.parse(userString);
       const workerId = parsedUser?._id || parsedUser?.id;
-
       if (!app?.jobId?._id || !workerId || !app?._id) {
         Alert.alert("Error", "Missing chat details.");
         return;
       }
-
       const response = await fetch(`${API_URL}/api/chat/create`, {
         method: "POST",
         headers: {
@@ -571,9 +612,7 @@ const handleEmployerRatingSubmit = async () => {
           applicationId: app._id,
         }),
       });
-
       const data = await response.json();
-
       if (response.ok && data.chat?._id) {
         router.push(`/job-chat?chatId=${data.chat._id}`);
       } else {
@@ -605,7 +644,6 @@ const handleEmployerRatingSubmit = async () => {
                 },
               );
               const data = await response.json();
-
               if (response.ok) {
                 setMyPastApplications((prev) =>
                   prev.filter((a) => a._id !== applicationId),
@@ -625,8 +663,6 @@ const handleEmployerRatingSubmit = async () => {
     );
   };
 
-  // ─── Render Helpers ─────────────────────────────────────────────────────
-
   const renderEmpty = (message: string) => (
     <View style={styles.emptyCard}>
       <Text style={styles.emptyText}>{message}</Text>
@@ -639,7 +675,29 @@ const handleEmployerRatingSubmit = async () => {
     </View>
   );
 
-  // ─── USER (employer) sections ────────────────────────────────────────────
+  // ── Referred Workers tap card ────────────────────────────────────────────
+  const renderReferredWorkersSection = () => (
+    <>
+      <SectionHeader title="Referred Workers" />
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="small" color={Colors.primary} />
+        </View>
+      ) : myReferrals.length === 0 ? (
+        renderEmpty("No referred workers found.")
+      ) : (
+        <TouchableOpacity
+          style={styles.quickCard}
+          onPress={() => setReferralsModal(true)}
+        >
+          <Text style={styles.quickCardTitle}>👷 Referred Workers</Text>
+          <Text style={styles.quickCardSub}>
+            {myReferrals.length} referred worker(s) — tap to view
+          </Text>
+        </TouchableOpacity>
+      )}
+    </>
+  );
 
   const renderUserSections = () => (
     <>
@@ -658,14 +716,12 @@ const handleEmployerRatingSubmit = async () => {
                     <Text style={styles.topRightDeleteIcon}>🗑️</Text>
                   </TouchableOpacity>
                 )}
-
                 <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
                   {job.category}
                 </Text>
                 <Text style={styles.requestSub}>{job.description}</Text>
                 <Text style={styles.requestSub}>📍 {job.address}</Text>
                 <StatusBadge status={job.status} />
-
                 {job.noBudget ? (
                   <Text style={styles.requestSub}>Budget: Not specified</Text>
                 ) : (
@@ -673,14 +729,12 @@ const handleEmployerRatingSubmit = async () => {
                     💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
                   </Text>
                 )}
-
                 <TouchableOpacity
                   style={styles.outlineBtn}
                   onPress={() => router.push(`/applications?jobId=${job._id}`)}
                 >
                   <Text style={styles.outlineBtnText}>View Applicants</Text>
                 </TouchableOpacity>
-
                 {["in_progress", "in-progress"].includes(
                   (job.status || "").toLowerCase(),
                 ) && (
@@ -707,7 +761,6 @@ const handleEmployerRatingSubmit = async () => {
                 <Text style={styles.requestSub}>{job.description}</Text>
                 <Text style={styles.requestSub}>📍 {job.address}</Text>
                 <StatusBadge status={job.status} />
-
                 {job.noBudget ? (
                   <Text style={styles.requestSub}>Budget: Not specified</Text>
                 ) : (
@@ -715,7 +768,6 @@ const handleEmployerRatingSubmit = async () => {
                     💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
                   </Text>
                 )}
-
                 {job.completedAt && (
                   <Text style={styles.requestSub}>
                     🗓 Completed:{" "}
@@ -725,28 +777,9 @@ const handleEmployerRatingSubmit = async () => {
               </View>
             ))}
 
-      <SectionHeader title="Referred Workers" />
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-        </View>
-      ) : myReferrals.length === 0 ? (
-        renderEmpty("No referred workers found.")
-      ) : (
-        <TouchableOpacity
-          style={styles.quickCard}
-          onPress={handleOpenReferrals}
-        >
-          <Text style={styles.quickCardTitle}>Referred Workers</Text>
-          <Text style={styles.quickCardSub}>
-            {myReferrals.length} referred worker(s) — tap to view
-          </Text>
-        </TouchableOpacity>
-      )}
+      {renderReferredWorkersSection()}
     </>
   );
-
-  // ─── WORKER sections ─────────────────────────────────────────────────────
 
   const renderWorkerSections = () => (
     <>
@@ -765,14 +798,12 @@ const handleEmployerRatingSubmit = async () => {
                     <Text style={styles.topRightDeleteIcon}>🗑️</Text>
                   </TouchableOpacity>
                 )}
-
                 <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
                   {job.category}
                 </Text>
                 <Text style={styles.requestSub}>{job.description}</Text>
                 <Text style={styles.requestSub}>📍 {job.address}</Text>
                 <StatusBadge status={job.status} />
-
                 {job.noBudget ? (
                   <Text style={styles.requestSub}>Budget: Not specified</Text>
                 ) : (
@@ -780,14 +811,12 @@ const handleEmployerRatingSubmit = async () => {
                     💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
                   </Text>
                 )}
-
                 <TouchableOpacity
                   style={styles.outlineBtn}
                   onPress={() => router.push(`/applications?jobId=${job._id}`)}
                 >
                   <Text style={styles.outlineBtnText}>View Applicants</Text>
                 </TouchableOpacity>
-
                 {["in_progress", "in-progress"].includes(
                   (job.status || "").toLowerCase(),
                 ) && (
@@ -814,7 +843,6 @@ const handleEmployerRatingSubmit = async () => {
                 <Text style={styles.requestSub}>{job.description}</Text>
                 <Text style={styles.requestSub}>📍 {job.address}</Text>
                 <StatusBadge status={job.status} />
-
                 {job.noBudget ? (
                   <Text style={styles.requestSub}>Budget: Not specified</Text>
                 ) : (
@@ -822,7 +850,6 @@ const handleEmployerRatingSubmit = async () => {
                     💰 Budget: ₹{job.minBudget || 0} – ₹{job.maxBudget || 0}
                   </Text>
                 )}
-
                 {job.completedAt && (
                   <Text style={styles.requestSub}>
                     🗓 Completed:{" "}
@@ -853,7 +880,6 @@ const handleEmployerRatingSubmit = async () => {
                 <Text style={styles.requestSub}>
                   📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
                 </Text>
-
                 {app.status === "pending" ? (
                   <View style={styles.workerActionRow}>
                     <TouchableOpacity
@@ -884,21 +910,57 @@ const handleEmployerRatingSubmit = async () => {
                     >
                       <Text style={styles.chatBtnText}>Chat</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.dangerOutlineBtnCompact, { borderColor: Colors.primary }]}
-                      onPress={() => {
-                        const employerId = typeof app.jobId?.posterId === "object"
-  ? (app.jobId?.posterId as any)?._id
-  : app.jobId?.posterId as string | undefined;
-                        if (employerId) {
-                          setEmployerRatingModal({ visible: true, employerId });
-                        } else {
-                          Alert.alert("Error", "Employer info not available.");
-                        }
-                      }}
-                    >
-                      <Text style={[styles.dangerOutlineBtnText, { color: Colors.primary }]}>Rate</Text>
-                    </TouchableOpacity>
+                    {!ratedApplicationIds.has(app._id) ? (
+                      <TouchableOpacity
+                        style={[
+                          styles.dangerOutlineBtnCompact,
+                          { borderColor: Colors.primary },
+                        ]}
+                        onPress={() => {
+                          const employerId =
+                            typeof app.jobId?.posterId === "object"
+                              ? (app.jobId?.posterId as any)?._id
+                              : (app.jobId?.posterId as string | undefined);
+                          if (employerId) {
+                            setEmployerRatingModal({
+                              visible: true,
+                              employerId,
+                              applicationId: app._id,
+                            });
+                          } else {
+                            Alert.alert(
+                              "Error",
+                              "Employer info not available.",
+                            );
+                          }
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.dangerOutlineBtnText,
+                            { color: Colors.primary },
+                          ]}
+                        >
+                          Rate
+                        </Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View
+                        style={[
+                          styles.dangerOutlineBtnCompact,
+                          { borderColor: "#ccc" },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dangerOutlineBtnText,
+                            { color: "#aaa" },
+                          ]}
+                        >
+                          ✓ Rated
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -924,7 +986,6 @@ const handleEmployerRatingSubmit = async () => {
                 >
                   <Text style={styles.topRightDeleteIcon}>🗑️</Text>
                 </TouchableOpacity>
-
                 <Text style={[styles.requestTitle, { paddingRight: 36 }]}>
                   {app.jobId?.category || "Job"}
                 </Text>
@@ -935,23 +996,46 @@ const handleEmployerRatingSubmit = async () => {
                 <Text style={styles.requestSub}>
                   📅 Applied: {new Date(app.createdAt).toLocaleDateString()}
                 </Text>
-                {app.status === "completed" && (
-  <TouchableOpacity
-    style={[styles.outlineBtn, { borderColor: Colors.primary }]}
-    onPress={() => {
-      const employerId = typeof app.jobId?.posterId === "object"
-        ? (app.jobId?.posterId as any)?._id
-        : app.jobId?.posterId as string | undefined;
-      if (employerId) {
-        setEmployerRatingModal({ visible: true, employerId });
-      } else {
-        Alert.alert("Error", "Employer info not available.");
-      }
-    }}
-  >
-    <Text style={[styles.outlineBtnText, { color: Colors.primary }]}>⭐ Rate Employer</Text>
-  </TouchableOpacity>
-)}
+                {app.status === "completed" &&
+                  (!ratedApplicationIds.has(app._id) ? (
+                    <TouchableOpacity
+                      style={[
+                        styles.outlineBtn,
+                        { borderColor: Colors.primary },
+                      ]}
+                      onPress={() => {
+                        const employerId =
+                          typeof app.jobId?.posterId === "object"
+                            ? (app.jobId?.posterId as any)?._id
+                            : (app.jobId?.posterId as string | undefined);
+                        if (employerId) {
+                          setEmployerRatingModal({
+                            visible: true,
+                            employerId,
+                            applicationId: app._id,
+                          });
+                        } else {
+                          Alert.alert("Error", "Employer info not available.");
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.outlineBtnText,
+                          { color: Colors.primary },
+                        ]}
+                      >
+                        ⭐ Rate Employer
+                      </Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={[styles.outlineBtn, { borderColor: "#ccc" }]}>
+                      <Text style={[styles.outlineBtnText, { color: "#aaa" }]}>
+                        ✓ Already Rated
+                      </Text>
+                    </View>
+                  ))}
+
                 {app.completedAt && (
                   <Text style={styles.requestSub}>
                     🗓 Completed:{" "}
@@ -961,28 +1045,9 @@ const handleEmployerRatingSubmit = async () => {
               </View>
             ))}
 
-      <SectionHeader title="Referred Workers" />
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="small" color={Colors.primary} />
-        </View>
-      ) : myReferrals.length === 0 ? (
-        renderEmpty("No referred workers found.")
-      ) : (
-        <TouchableOpacity
-          style={styles.quickCard}
-          onPress={handleOpenReferrals}
-        >
-          <Text style={styles.quickCardTitle}>Referred Workers</Text>
-          <Text style={styles.quickCardSub}>
-            {myReferrals.length} referred worker(s) — tap to view
-          </Text>
-        </TouchableOpacity>
-      )}
+      {renderReferredWorkersSection()}
     </>
   );
-
-  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -1009,7 +1074,6 @@ const handleEmployerRatingSubmit = async () => {
               }
               size={72}
             />
-
             <View style={styles.profileInfo}>
               <View style={styles.profileNameRow}>
                 <Text style={styles.profileName}>
@@ -1022,12 +1086,13 @@ const handleEmployerRatingSubmit = async () => {
                   <Text style={styles.editIconText}>✏️</Text>
                 </TouchableOpacity>
               </View>
-
-<StarRating rating={
-  user?.role === "worker"
-    ? (user?.averageRating || 0)
-    : (user?.averageEmployerRating || 0)
-} />
+              <StarRating
+                rating={
+                  user?.role === "worker"
+                    ? user?.averageRating || 0
+                    : user?.averageEmployerRating || 0
+                }
+              />
               {user?.role && (
                 <View
                   style={[
@@ -1055,7 +1120,6 @@ const handleEmployerRatingSubmit = async () => {
                   </Text>
                 </View>
               )}
-
               {user?.role === "worker" &&
                 user.skills &&
                 user.skills.length > 0 && (
@@ -1067,7 +1131,6 @@ const handleEmployerRatingSubmit = async () => {
                     ))}
                   </View>
                 )}
-
               <Text style={styles.profileText}>
                 Email: {user?.email || "-"}
               </Text>
@@ -1079,7 +1142,6 @@ const handleEmployerRatingSubmit = async () => {
               </Text>
             </View>
           </View>
-
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={handleUpdateProfile}
@@ -1095,42 +1157,145 @@ const handleEmployerRatingSubmit = async () => {
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutBtnText}>Logout</Text>
         </TouchableOpacity>
-
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      <Modal transparent animationType="fade" visible={ratingModal.visible}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
-          <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, width: "100%", gap: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: Colors.textPrimary }}>Rate the Worker</Text>
-            <Text style={{ fontSize: 14, color: Colors.textSecondary }}>How was their work?</Text>
+      {/* ─── Referrals Bottom Sheet Modal ───────────────────────────────── */}
+      <Modal
+        visible={referralsModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReferralsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalHeaderText}>Referred Workers</Text>
+              <TouchableOpacity onPress={() => setReferralsModal(false)}>
+                <Text
+                  style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}
+                >
+                  ✕
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {myReferrals.map((ref) => (
+                <View key={ref._id} style={styles.referralCard}>
+                  <Text style={styles.referralName}>👷 {ref.workerName}</Text>
+                  <Text style={styles.referralSub}>📞 {ref.workerPhone}</Text>
+                  {ref.skills && ref.skills.length > 0 && (
+                    <Text style={styles.referralSub}>
+                      🛠 {ref.skills.join(", ")}
+                    </Text>
+                  )}
+                  {ref.jobId?.category && (
+                    <Text style={styles.referralSub}>
+                      💼 Job: {ref.jobId.category}
+                    </Text>
+                  )}
+                </View>
+              ))}
+              <View style={{ height: 30 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
+      {/* ─── Rate Worker Modal ───────────────────────────────────────────── */}
+      <Modal transparent animationType="fade" visible={ratingModal.visible}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              gap: 12,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "800",
+                color: Colors.textPrimary,
+              }}
+            >
+              Rate the Worker
+            </Text>
+            <Text style={{ fontSize: 14, color: Colors.textSecondary }}>
+              How was their work?
+            </Text>
             <View style={{ flexDirection: "row", gap: 6 }}>
               {[1, 2, 3, 4, 5].map((i) => (
                 <TouchableOpacity key={i} onPress={() => setRating(i)}>
-                  <Text style={{ fontSize: 28, color: i <= rating ? Colors.starGold : "#DDD" }}>★</Text>
+                  <Text
+                    style={{
+                      fontSize: 28,
+                      color: i <= rating ? Colors.starGold : "#DDD",
+                    }}
+                  >
+                    ★
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
-
             <TextInput
-              style={{ borderWidth: 1, borderColor: "#DDD", borderRadius: 10, padding: 10, fontSize: 14, minHeight: 80, textAlignVertical: "top" }}
+              style={{
+                borderWidth: 1,
+                borderColor: "#DDD",
+                borderRadius: 10,
+                padding: 10,
+                fontSize: 14,
+                minHeight: 80,
+                textAlignVertical: "top",
+              }}
               placeholder="Write a review (optional)..."
               placeholderTextColor="#aaa"
               value={review}
               onChangeText={setReview}
               multiline
             />
-
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 999, backgroundColor: "#F1F3F5", alignItems: "center" }}
-                onPress={() => { setRatingModal({ visible: false, jobId: "", workerId: "" }); setRating(0); setReview(""); }}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 999,
+                  backgroundColor: "#F1F3F5",
+                  alignItems: "center",
+                }}
+                onPress={() => {
+                  setRatingModal({ visible: false, jobId: "", workerId: "" });
+                  setRating(0);
+                  setReview("");
+                }}
               >
-                <Text style={{ fontWeight: "600", color: Colors.textSecondary }}>Skip</Text>
+                <Text
+                  style={{ fontWeight: "600", color: Colors.textSecondary }}
+                >
+                  Skip
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 999, backgroundColor: Colors.primary, alignItems: "center" }}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 999,
+                  backgroundColor: Colors.primary,
+                  alignItems: "center",
+                }}
                 onPress={handleRatingSubmit}
               >
                 <Text style={{ fontWeight: "700", color: "#fff" }}>Submit</Text>
@@ -1140,38 +1305,101 @@ const handleEmployerRatingSubmit = async () => {
         </View>
       </Modal>
 
-      <Modal transparent animationType="fade" visible={employerRatingModal.visible}>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 }}>
-          <View style={{ backgroundColor: "#fff", borderRadius: 16, padding: 24, width: "100%", gap: 12 }}>
-            <Text style={{ fontSize: 18, fontWeight: "800", color: Colors.textPrimary }}>Rate the Employer</Text>
-            <Text style={{ fontSize: 14, color: Colors.textSecondary }}>How was your experience?</Text>
-
+      {/* ─── Rate Employer Modal ─────────────────────────────────────────── */}
+      <Modal
+        transparent
+        animationType="fade"
+        visible={employerRatingModal.visible}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              gap: 12,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "800",
+                color: Colors.textPrimary,
+              }}
+            >
+              Rate the Employer
+            </Text>
+            <Text style={{ fontSize: 14, color: Colors.textSecondary }}>
+              How was your experience?
+            </Text>
             <View style={{ flexDirection: "row", gap: 6 }}>
               {[1, 2, 3, 4, 5].map((i) => (
                 <TouchableOpacity key={i} onPress={() => setEmployerRating(i)}>
-                  <Text style={{ fontSize: 28, color: i <= employerRating ? Colors.starGold : "#DDD" }}>★</Text>
+                  <Text
+                    style={{
+                      fontSize: 28,
+                      color: i <= employerRating ? Colors.starGold : "#DDD",
+                    }}
+                  >
+                    ★
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
-
             <TextInput
-              style={{ borderWidth: 1, borderColor: "#DDD", borderRadius: 10, padding: 10, fontSize: 14, minHeight: 80, textAlignVertical: "top" }}
+              style={{
+                borderWidth: 1,
+                borderColor: "#DDD",
+                borderRadius: 10,
+                padding: 10,
+                fontSize: 14,
+                minHeight: 80,
+                textAlignVertical: "top",
+              }}
               placeholder="Write a review (optional)..."
               placeholderTextColor="#aaa"
               value={employerReview}
               onChangeText={setEmployerReview}
               multiline
             />
-
             <View style={{ flexDirection: "row", gap: 10 }}>
               <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 999, backgroundColor: "#F1F3F5", alignItems: "center" }}
-                onPress={() => { setEmployerRatingModal({ visible: false, employerId: "" }); setEmployerRating(0); setEmployerReview(""); }}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 999,
+                  backgroundColor: "#F1F3F5",
+                  alignItems: "center",
+                }}
+                onPress={() => {
+                  setEmployerRatingModal({ visible: false, employerId: "" ,applicationId: " "});
+                  setEmployerRating(0);
+                  setEmployerReview("");
+                }}
               >
-                <Text style={{ fontWeight: "600", color: Colors.textSecondary }}>Skip</Text>
+                <Text
+                  style={{ fontWeight: "600", color: Colors.textSecondary }}
+                >
+                  Skip
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{ flex: 1, padding: 12, borderRadius: 999, backgroundColor: Colors.primary, alignItems: "center" }}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 999,
+                  backgroundColor: Colors.primary,
+                  alignItems: "center",
+                }}
                 onPress={handleEmployerRatingSubmit}
               >
                 <Text style={{ fontWeight: "700", color: "#fff" }}>Submit</Text>
@@ -1180,31 +1408,24 @@ const handleEmployerRatingSubmit = async () => {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
-
   header: {
     backgroundColor: Colors.primary,
     alignItems: "center",
     paddingVertical: 16,
   },
   headerTitle: { color: Colors.white, fontSize: 22, fontWeight: "700" },
-
   scrollContent: { padding: Spacing.md, gap: 14 },
-
   centered: {
     paddingVertical: 28,
     alignItems: "center",
     justifyContent: "center",
   },
-
   profileCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -1225,17 +1446,14 @@ const styles = StyleSheet.create({
   profileText: { fontSize: 14, color: Colors.textSecondary },
   editIcon: { padding: 4 },
   editIconText: { fontSize: 16 },
-
   avatar: {
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: { color: Colors.white, fontWeight: "700" },
-
   starsRow: { flexDirection: "row", alignItems: "center", marginTop: 2 },
   ratingText: { fontSize: 13, color: Colors.textSecondary },
-
   roleBadge: {
     alignSelf: "flex-start",
     borderRadius: 10,
@@ -1244,7 +1462,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   roleBadgeText: { fontSize: 12, fontWeight: "700" },
-
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
   tag: {
     backgroundColor: Colors.primary + "20",
@@ -1253,7 +1470,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   tagText: { fontSize: 12, color: Colors.primary, fontWeight: "600" },
-
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1272,7 +1488,6 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     marginTop: 6,
   },
-
   badge: {
     alignSelf: "flex-start",
     borderRadius: 12,
@@ -1280,7 +1495,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   badgeText: { fontSize: 12, fontWeight: "600" },
-
   primaryBtn: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.full,
@@ -1288,7 +1502,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: Colors.white, fontWeight: "700" },
-
   logoutBtn: {
     backgroundColor: "#D9534F",
     borderRadius: Radius.full,
@@ -1296,7 +1509,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoutBtnText: { color: Colors.white, fontWeight: "700" },
-
   outlineBtn: {
     borderWidth: 1.5,
     borderColor: Colors.primary,
@@ -1306,7 +1518,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   outlineBtnText: { color: Colors.primary, fontWeight: "700" },
-
   completeBtn: {
     backgroundColor: Colors.success,
     borderRadius: Radius.full,
@@ -1315,7 +1526,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   completeBtnText: { color: Colors.white, fontWeight: "700" },
-
   dangerOutlineBtn: {
     borderWidth: 1.5,
     borderColor: Colors.error,
@@ -1335,7 +1545,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   dangerOutlineBtnText: { color: Colors.error, fontWeight: "700" },
-
   chatBtn: {
     flex: 1,
     backgroundColor: Colors.primary,
@@ -1354,7 +1563,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   chatBtnText: { color: Colors.white, fontWeight: "700" },
-
   emptyCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -1363,7 +1571,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.cardBorder,
   },
   emptyText: { fontSize: 15, color: Colors.textMuted },
-
   requestCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -1374,18 +1581,10 @@ const styles = StyleSheet.create({
     gap: 6,
     position: "relative",
   },
-  pastCard: {
-    opacity: 0.85,
-  },
+  pastCard: { opacity: 0.85 },
   requestTitle: { fontSize: 17, fontWeight: "700", color: Colors.textPrimary },
   requestSub: { fontSize: 14, color: Colors.textSecondary },
-
-  workerActionRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 4,
-  },
-
+  workerActionRow: { flexDirection: "row", gap: 10, marginTop: 4 },
   topRightDeleteBtn: {
     position: "absolute",
     top: Spacing.md,
@@ -1394,7 +1593,6 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   topRightDeleteIcon: { fontSize: 20 },
-
   quickCard: {
     backgroundColor: Colors.cardBg,
     borderRadius: Radius.lg,
@@ -1409,4 +1607,40 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   quickCardSub: { marginTop: 6, fontSize: 12, color: Colors.textSecondary },
+
+  // ── Referrals Modal ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "#FAFAFA",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    maxHeight: "80%",
+    overflow: "hidden",
+  },
+  modalHeader: {
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  modalHeaderText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  modalBody: { paddingHorizontal: 16, paddingTop: 12 },
+  referralCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    gap: 4,
+    ...Shadow.sm,
+  },
+  referralName: { fontSize: 16, fontWeight: "700", color: Colors.textPrimary },
+  referralSub: { fontSize: 14, color: Colors.textSecondary },
 });

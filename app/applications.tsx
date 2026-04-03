@@ -21,7 +21,7 @@ import {
   Spacing,
 } from "../constants/kaamsetuTheme";
 
-const API_URL = "http://172.24.209.112:8030";
+const API_URL = "http://172.27.16.252:8030";
 
 function StarRatingInput({
   rating,
@@ -47,6 +47,7 @@ function StarRatingInput({
     </View>
   );
 }
+
 type WorkerRef =
   | string
   | {
@@ -66,6 +67,7 @@ type ApplicationItem = {
   status?: string;
   source?: "direct" | "referral";
   jobId?: string | { _id: string };
+  createdAt?: string; // Added for parsing referral dates
 };
 
 type ReferralItem = {
@@ -82,7 +84,7 @@ type ListRow =
   | { type: "application"; id: string; data: ApplicationItem }
   | { type: "referral"; id: string; data: ReferralItem };
 
-  const safeJson = async (res: Response) => {
+const safeJson = async (res: Response) => {
   try {
     const text = await res.text();
     return JSON.parse(text);
@@ -107,58 +109,37 @@ export default function ApplicationListScreen() {
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [referrals, setReferrals] = useState<ReferralItem[]>([]);
   const [loading, setLoading] = useState(true);
+
   const getWorkerIdValue = (workerId?: WorkerRef) => {
     if (!workerId) return null;
     return typeof workerId === "string" ? workerId : workerId._id;
   };
-  // export default function ApplicationsScreen() {
-  //   const router = useRouter();
-  //   const [tab, setTab] = useState<TabType>("accepted");
-  //   const [rating, setRating] = useState(0);
-  //   const [review, setReview] = useState("");
-  //   const [applications, setApplications] = useState<any[]>([]);
-  //   const [ratingModal, setRatingModal] = useState<{ visible: boolean; appId: string }>({
-  //     visible: false,
-  //     appId: "",
-  //   });
-  //   const BASE_URL = API_BASE;
-  //   const { jobId } = useLocalSearchParams<{ jobId: string }>();
 
   const getWorkerDisplayName = (app: ApplicationItem) => {
     if (app.workerName) return app.workerName;
-
     if (app.workerId && typeof app.workerId !== "string" && app.workerId.name) {
       return app.workerId.name;
     }
-
-    if (app.workerPhone) {
-      return `Worker (${app.workerPhone})`;
-    }
-
+    if (app.workerPhone) return `Worker (${app.workerPhone})`;
     if (app.workerId && typeof app.workerId === "string") {
       return `Worker ID: ${app.workerId}`;
     }
-
     return "Worker";
   };
 
   const getWorkerPhone = (app: ApplicationItem) => {
     if (app.workerPhone) return app.workerPhone;
-
     if (app.workerId && typeof app.workerId !== "string") {
       return app.workerId.phone || null;
     }
-
     return null;
   };
 
   const getWorkerSkills = (app: ApplicationItem) => {
     if (app.skills && app.skills.length > 0) return app.skills;
-
     if (app.workerId && typeof app.workerId !== "string") {
       return app.workerId.skills || [];
     }
-
     return [];
   };
 
@@ -190,8 +171,8 @@ export default function ApplicationListScreen() {
         }),
       ]);
 
-     const applicationsData = await safeJson(applicationsRes);
-const referralsData = await safeJson(referralsRes);
+      const applicationsData = await safeJson(applicationsRes);
+      const referralsData = await safeJson(referralsRes);
 
       if (!applicationsRes.ok) {
         console.log("Applications fetch error:", applicationsData);
@@ -227,34 +208,45 @@ const referralsData = await safeJson(referralsRes);
     fetchData();
   }, [jobId]);
 
+  // Split standard applications (registered users) from referred applications
+  const filteredStandardApps = useMemo(() => {
+    return applications.filter(
+      (app) =>
+        app.source !== "referral" &&
+        (tab === "accepted"
+          ? app.status === "accepted"
+          : app.status === "pending" || !app.status),
+    );
+  }, [applications, tab]);
+
+  const filteredReferredAppsAsReferrals = useMemo(() => {
+    // Referrals usually fall under the pending logic until completed/accepted elsewhere
+    if (tab !== "pending") return [];
+    return applications.filter((app) => app.source === "referral");
+  }, [applications, tab]);
+
   const filteredReferrals = useMemo(() => {
+    if (tab !== "pending") return [];
     return referrals.filter((item) => {
       if (!item.jobId || !jobId) return false;
-
       if (typeof item.jobId === "string") {
         return item.jobId === jobId;
       }
-
       return item.jobId._id === jobId;
     });
-  }, [referrals, jobId]);
-  const filteredApps = useMemo(() => {
-    return applications.filter((app) =>
-      tab === "accepted"
-        ? app.status === "accepted"
-        : app.status === "pending" || !app.status,
-    );
-  }, [applications, tab]);
+  }, [referrals, jobId, tab]);
 
   const listData: ListRow[] = useMemo(() => {
     const rows: ListRow[] = [];
 
+    // --- STANDARD APPLICANTS SECTION ---
     rows.push({
       type: "section",
       id: "applicants-section",
       title: "Applicants",
     });
-    filteredApps.forEach((item) => {
+
+    filteredStandardApps.forEach((item) => {
       rows.push({
         type: "application",
         id: `application-${item._id}`,
@@ -262,19 +254,44 @@ const referralsData = await safeJson(referralsRes);
       });
     });
 
+    // --- REFERRED WORKERS SECTION ---
     if (tab === "pending") {
       rows.push({
         type: "section",
         id: "referrals-section",
         title: "Referred Workers",
       });
+
+      // 1. Add referrals strictly from the referrals endpoint
       filteredReferrals.forEach((item) => {
         rows.push({ type: "referral", id: `referral-${item._id}`, data: item });
+      });
+
+      // 2. Add applications that are actually referrals (like Harshit)
+      filteredReferredAppsAsReferrals.forEach((app) => {
+        rows.push({
+          type: "referral",
+          id: `app-referral-${app._id}`,
+          data: {
+            _id: app._id,
+            workerName: getWorkerDisplayName(app),
+            workerPhone: getWorkerPhone(app) || "No phone provided",
+            skills: getWorkerSkills(app),
+            createdAt: app.createdAt,
+            jobId: app.jobId,
+          } as ReferralItem,
+        });
       });
     }
 
     return rows;
-  }, [filteredApps, filteredReferrals, tab]);
+  }, [
+    filteredStandardApps,
+    filteredReferrals,
+    filteredReferredAppsAsReferrals,
+    tab,
+  ]);
+
   const handleAccept = async (applicationId: string) => {
     try {
       const token = await AsyncStorage.getItem("token");
@@ -367,6 +384,7 @@ const referralsData = await safeJson(referralsRes);
       Alert.alert("Error", "Something went wrong");
     }
   };
+
   const handleRatingSubmit = async () => {
     const appId = ratingModal.appId;
     const token = await AsyncStorage.getItem("token");
@@ -395,6 +413,7 @@ const referralsData = await safeJson(referralsRes);
     setRating(0);
     setReview("");
   };
+
   const renderItem = ({ item }: { item: ListRow }) => {
     if (item.type === "section") {
       return (
@@ -411,7 +430,6 @@ const referralsData = await safeJson(referralsRes);
       const status = app.status || "pending";
       const workerDisplayName = getWorkerDisplayName(app);
       const workerPhone = getWorkerPhone(app);
-      const workerSkills = getWorkerSkills(app);
 
       return (
         <View style={styles.card}>
@@ -466,6 +484,8 @@ const referralsData = await safeJson(referralsRes);
       );
     }
 
+    // Since we mapped source==="referral" applications to this type,
+    // it will now use this card, hiding the Accept/Reject/Chat buttons natively!
     const referral = item.data;
 
     return (
@@ -494,11 +514,16 @@ const referralsData = await safeJson(referralsRes);
   };
 
   const keyExtractor = (item: ListRow) => item.id;
-  const showApplicantsEmpty = filteredApps.length === 0;
+
+  const showApplicantsEmpty = filteredStandardApps.length === 0;
   const showReferralsEmpty =
-    tab === "pending" ? filteredReferrals.length === 0 : false;
+    tab === "pending"
+      ? filteredReferrals.length === 0 &&
+        filteredReferredAppsAsReferrals.length === 0
+      : false;
   const showCompletelyEmpty =
     showApplicantsEmpty && (tab === "pending" ? showReferralsEmpty : true);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />

@@ -218,19 +218,19 @@ export default function LiveJobsScreen() {
       });
 
       const text = await res.text();
-console.log("RAW RESPONSE:", text);
+      console.log("RAW RESPONSE:", text);
 
-let data;
-try {
-  data = JSON.parse(text);
-} catch (e) {
-  // Try to extract valid jobs before the broken part
-  console.log("Parse failed, trying to find broken job...");
-  setJobs([]);
-  setLoading(false);
-  setRefreshing(false);
-  return;
-}
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        // Try to extract valid jobs before the broken part
+        console.log("Parse failed, trying to find broken job...");
+        setJobs([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
 
       if (res.ok) {
         if (Array.isArray(data)) {
@@ -239,22 +239,22 @@ try {
             budgetMin: job.minBudget,
             budgetMax: job.maxBudget,
             isNegotiable: job.noBudget,
-           schedule: new Date(job.startDate).toLocaleString("en-IN", {
-  day: "numeric",
-  month: "short",
-  hour: "numeric",
-  minute: "2-digit",
-}),
-endSchedule: job.endDate
-  ? new Date(job.endDate).toLocaleString("en-IN", {
-      day: "numeric",
-      month: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    })
-  : null,
-postedBy: job.postedBy || { name: "User" },
-rating: job.rating ?? 4,
+            schedule: new Date(job.startDate).toLocaleString("en-IN", {
+              day: "numeric",
+              month: "short",
+              hour: "numeric",
+              minute: "2-digit",
+            }),
+            endSchedule: job.endDate
+              ? new Date(job.endDate).toLocaleString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })
+              : null,
+            postedBy: job.postedBy || { name: "User" },
+            rating: job.rating ?? 4,
           }));
 
           setJobs(formatted);
@@ -435,86 +435,91 @@ rating: job.rating ?? 4,
     setReferSkills("");
   };
 
-const handleReferSubmit = async () => {
-  console.log("🚀 Referral submit triggered");
+  const handleReferSubmit = async () => {
+    console.log("🚀 Referral submit triggered");
 
-  if (!referName.trim()) {
-    console.log("❌ Name missing");
-    setPopup("Please enter the worker's name");
-    setPopupType("error");
-    return;
-  }
-
-  if (!/^\d{10}$/.test(referPhone.trim())) {
-    console.log("❌ Invalid phone:", referPhone);
-    setPopup("Phone number must be exactly 10 digits");
-    setPopupType("error");
-    return;
-  }
-
-  if (!referSkills.trim()) {
-    console.log("❌ Skills missing");
-    setPopup("Please describe the worker's skills");
-    setPopupType("error");
-    return;
-  }
-
-  if (!referJobId) {
-    console.log("❌ No jobId");
-    setPopup("No job selected");
-    setPopupType("error");
-    return;
-  }
-
-  setReferLoading(true);
-
-  const payload = {
-    workerName: referName.trim(),
-    workerPhone: referPhone.trim(),
-    message: referSkills.trim(),
-    jobId: referJobId,
-  };
-
-  console.log("📦 Sending payload:", payload);
-  console.log("🌐 URL:", `${BASE_URL}/referrals/add`);
-
-  try {
-    const res = await fetch(`${BASE_URL}/referrals/add`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    console.log("📡 Response status:", res.status);
-
-    const data = await res.json();
-    console.log("📨 Response data:", data);
-
-    if (!res.ok) {
-      console.log("❌ Backend error:", data);
-      setPopup(data.message || "Failed to add referral");
+    if (!referName.trim()) {
+      console.log("❌ Name missing");
+      setPopup("Please enter the worker's name");
       setPopupType("error");
       return;
     }
 
-    console.log("✅ Referral success");
+    if (!/^\d{10}$/.test(referPhone.trim())) {
+      console.log("❌ Invalid phone:", referPhone);
+      setPopup("Phone number must be exactly 10 digits");
+      setPopupType("error");
+      return;
+    }
 
-    setPopup("Worker added to your referrals");
-    setPopupType("normal");
+    if (!referSkills.trim()) {
+      console.log("❌ Skills missing");
+      setPopup("Please describe the worker's skills");
+      setPopupType("error");
+      return;
+    }
 
-    closeReferModal();
-  } catch (error) {
-    console.log("🔥 Network / Fetch error:", error);
-    setPopup("Something went wrong");
-    setPopupType("error");
-  } finally {
-    console.log("🧹 Done (loading false)");
-    setReferLoading(false);
+    if (!referJobId) {
+      console.log("❌ No jobId");
+      setPopup("No job selected");
+      setPopupType("error");
+      return;
+    }
+
+    const freshToken = await AsyncStorage.getItem("token");
+    if (!freshToken) {
+      setPopup("Session expired. Please login again.");
+      setPopupType("error");
+      return;
+    }
+
+    setReferLoading(true);
+
+    const payload = {
+      workerName: referName.trim(),
+      workerPhone: referPhone.trim(),
+      message: referSkills.trim(),
+      jobId: referJobId,
+    };
+
+    try {
+      const res = await fetch(`${BASE_URL}/referral/add`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${freshToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      console.log("Referral raw response:", text);
+
+      let data: any = {};
+      try {
+        data = JSON.parse(text);
+      } catch {
+        console.log("Response was not JSON:", text);
+      }
+
+      if (!res.ok) {
+        setPopup(data.message || `Server error: ${res.status}`);
+        setPopupType("error");
+        return;
+      }
+
+      setPopup("Worker added to your referrals");
+      setPopupType("normal");
+      closeReferModal();
+
+    } catch (error) {
+      console.log("Network error:", error);
+      setPopup(`Network error: ${String(error)}`);
+      setPopupType("error");
+    } finally {
+      setReferLoading(false);
+    }
   }
-};
   // ─────────────────────────────────────────────────────────────────────────
   // RENDER: Filter Pill + Dropdown
   // ─────────────────────────────────────────────────────────────────────────
@@ -631,19 +636,19 @@ const handleReferSubmit = async () => {
           )}
 
           <Text style={styles.infoText}>
-  <Text style={styles.infoLabel}>Budget: </Text>
-  {budgetText}
-  {"     "}
-  <Text style={styles.infoLabel}>Start: </Text>
-  {job.schedule}
-  {job.endSchedule ? (
-    <>
-      {"   "}
-      <Text style={styles.infoLabel}>End: </Text>
-      {job.endSchedule}
-    </>
-  ) : null}
-</Text>
+            <Text style={styles.infoLabel}>Budget: </Text>
+            {budgetText}
+            {"     "}
+            <Text style={styles.infoLabel}>Start: </Text>
+            {job.schedule}
+            {job.endSchedule ? (
+              <>
+                {"   "}
+                <Text style={styles.infoLabel}>End: </Text>
+                {job.endSchedule}
+              </>
+            ) : null}
+          </Text>
 
           <Text style={styles.infoText}>
             <Text style={styles.infoLabel}>Address: </Text>

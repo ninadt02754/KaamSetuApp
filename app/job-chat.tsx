@@ -23,7 +23,7 @@ import {
   Spacing,
 } from "../constants/kaamsetuTheme";
 
-const API_URL = "http://172.24.209.112:8030";
+const API_URL = "http://172.27.16.252:8030";
 
 type RawSender =
   | string

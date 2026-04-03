@@ -45,7 +45,7 @@ router.post("/send-otp", async (req, res) => {
     console.log("OTP:", otp); // debug
 
     // 🚀 SEND TO YOUR PC (relay server)
-    const relayRes = await fetch("http://172.24.209.112:3000/send-otp", {
+    const relayRes = await fetch("http://172.27.16.252:3000/send-otp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -195,13 +195,18 @@ router.post("/rate-worker", async (req, res) => {
     if (!worker) return res.status(404).json({ message: "Worker not found" });
 
     const newTotal = (worker.totalRatings || 0) + 1;
-    const newAvg = ((worker.averageRating || 0) * (worker.totalRatings || 0) + rating) / newTotal;
+    const newAvg =
+      ((worker.averageRating || 0) * (worker.totalRatings || 0) + rating) /
+      newTotal;
 
     worker.totalRatings = newTotal;
     worker.averageRating = parseFloat(newAvg.toFixed(2));
     await worker.save();
 
-    res.json({ message: "Rating submitted", averageRating: worker.averageRating });
+    res.json({
+      message: "Rating submitted",
+      averageRating: worker.averageRating,
+    });
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
@@ -212,15 +217,20 @@ router.post("/rate-employer", async (req, res) => {
     const { employerId, rating, review } = req.body;
 
     if (!employerId || !rating) {
-      return res.status(400).json({ message: "employerId and rating are required" });
+      return res
+        .status(400)
+        .json({ message: "employerId and rating are required" });
     }
 
     const employer = await User.findById(employerId);
-    if (!employer) return res.status(404).json({ message: "Employer not found" });
+    if (!employer)
+      return res.status(404).json({ message: "Employer not found" });
 
     const newTotal = (employer.totalEmployerRatings || 0) + 1;
     const newAvg =
-      ((employer.averageEmployerRating || 0) * (employer.totalEmployerRatings || 0) + rating) /
+      ((employer.averageEmployerRating || 0) *
+        (employer.totalEmployerRatings || 0) +
+        rating) /
       newTotal;
 
     employer.totalEmployerRatings = newTotal;
