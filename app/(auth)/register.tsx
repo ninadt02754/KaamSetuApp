@@ -2,8 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Base_Url , API_BASE} from "../../constants/Config";
-import { registerForPushNotifications } from "../../backend/utils/notifications";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -14,7 +12,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { registerForPushNotifications } from "../../backend/utils/notifications";
 import Popup from "../../components/Popup";
+import { API_BASE } from "../../constants/Config";
 
 export default function Register() {
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -30,13 +30,17 @@ export default function Register() {
   const [phone, setPhone] = useState("");
   const [timer, setTimer] = useState(0);
   const [popup, setPopup] = useState("");
-
+  const [phoneOtp, setPhoneOtp] = useState(["", "", "", ""]);
+  const [phoneOtpInputs, setPhoneOtpInputs] = useState<Array<any>>([]);
+  const [sendingPhoneOtp, setSendingPhoneOtp] = useState(false);
+  const [phoneTimer, setPhoneTimer] = useState(0);
   // 🔥 TAG SYSTEM
   const [tagInput, setTagInput] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showList, setShowList] = useState(false);
 
   const inputs = useRef<Array<TextInput | null>>([]);
+  const phoneInputs = useRef<Array<TextInput | null>>([]);
   const suggestions = [
     "Electrician",
     "Plumber",
@@ -72,6 +76,16 @@ export default function Register() {
 
     return () => clearInterval(interval);
   }, [timer]);
+
+  useEffect(() => {
+    let interval: any;
+    if (phoneTimer > 0) {
+      interval = setInterval(() => {
+        setPhoneTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [phoneTimer]);
 
   const handleChange = (value: string, index: number) => {
     let newOtp = [...otp];
@@ -123,6 +137,47 @@ export default function Register() {
     }
   };
 
+  const handlePhoneOtpChange = (value: string, index: number) => {
+    const newOtp = [...phoneOtp];
+    newOtp[index] = value;
+    setPhoneOtp(newOtp);
+    if (value && index < 3) {
+      phoneInputs.current[index + 1]?.focus();
+    }
+  };
+
+  const handlePhoneOtpKeyPress = (key: string, index: number) => {
+    if (key === "Backspace" && index > 0 && !phoneOtp[index]) {
+      phoneInputs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleSendPhoneOTP = async () => {
+    try {
+      if (phone.length !== 10 || !/^[6-9]\d{9}$/.test(phone)) {
+        setError("Enter a valid 10-digit mobile number first");
+        return;
+      }
+      setSendingPhoneOtp(true);
+      const res = await fetch(`${API_BASE}/auth/send-phone-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message);
+        return;
+      }
+      setPopup("OTP sent to your phone 📱");
+      setPhoneTimer(30);
+    } catch (err) {
+      setError("Error sending phone OTP");
+    } finally {
+      setSendingPhoneOtp(false);
+    }
+  };
+
   const handleRegister = async () => {
     try {
       if (!name || !email || !password || !confirm || !phone) {
@@ -130,8 +185,14 @@ export default function Register() {
         return;
       }
 
-      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#^()_\-+=])[A-Za-z0-9@$!%*?&#^()_\-+=]{8,}$/.test(password)) {
-        setError("Password must be 8+ chars with uppercase, lowercase, number & special char (@$!%*?&#)");
+      if (
+        !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#^()_\-+=])[A-Za-z0-9@$!%*?&#^()_\-+=]{8,}$/.test(
+          password,
+        )
+      ) {
+        setError(
+          "Password must be 8+ chars with uppercase, lowercase, number & special char (@$!%*?&#)",
+        );
         return;
       }
 
@@ -152,6 +213,12 @@ export default function Register() {
         return;
       }
 
+      const finalPhoneOtp = phoneOtp.join("");
+      if (!/^\d{4}$/.test(finalPhoneOtp)) {
+        setError("Enter valid Phone OTP");
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
         headers: {
@@ -166,6 +233,7 @@ export default function Register() {
           skills: isWorker ? selectedTags : [],
           role: isWorker ? "worker" : "user",
           otp: finalOtp,
+          phoneOtp: finalPhoneOtp,
         }),
       });
 
@@ -179,7 +247,6 @@ export default function Register() {
       setPopup("Registered Successfully ✅");
 
       await registerForPushNotifications();
-
 
       router.replace("/(auth)/login");
     } catch (err) {
@@ -255,19 +322,23 @@ export default function Register() {
                 onPress={handleSendOTP}
                 disabled={timer > 0 || sendingOtp}
               >
-                <Text style={{ fontSize: 12, color: "#fff", fontWeight: "600" }}>
+                <Text
+                  style={{ fontSize: 12, color: "#fff", fontWeight: "600" }}
+                >
                   {sendingOtp
                     ? "Sending..."
                     : timer > 0
-                    ? "Send OTP"
-                    : "Send OTP"}
+                      ? "Send OTP"
+                      : "Send OTP"}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Resend OTP */}
             {timer > 0 ? (
-              <Text style={{ textAlign: "center", marginTop: 5, color: "#1A3C5E" }}>
+              <Text
+                style={{ textAlign: "center", marginTop: 5, color: "#1A3C5E" }}
+              >
                 Resend OTP in {timer}s
               </Text>
             ) : (
@@ -367,7 +438,6 @@ export default function Register() {
                   ))}
                 </View>
 
-
                 <View style={styles.inputContainer}>
                   <Ionicons name="pricetag-outline" size={20} color="#777" />
 
@@ -390,13 +460,71 @@ export default function Register() {
             )}
 
             {/* Phone */}
-            <Input
-              icon="call-outline"
-              placeholder="Phone Number"
-              value={phone}
-              onChange={setPhone}
-              numeric
-            />
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  icon="call-outline"
+                  placeholder="Phone Number"
+                  value={phone}
+                  onChange={setPhone}
+                  numeric
+                />
+              </View>
+              <TouchableOpacity
+                style={[
+                  styles.otpBtn,
+                  (phoneTimer > 0 || sendingPhoneOtp) && { opacity: 0.6 },
+                ]}
+                onPress={handleSendPhoneOTP}
+                disabled={phoneTimer > 0 || sendingPhoneOtp}
+              >
+                <Text
+                  style={{ fontSize: 12, color: "#fff", fontWeight: "600" }}
+                >
+                  {sendingPhoneOtp ? "Sending..." : "Send OTP"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {phoneTimer > 0 ? (
+              <Text
+                style={{ textAlign: "center", marginTop: 5, color: "#1A3C5E" }}
+              >
+                Resend in {phoneTimer}s
+              </Text>
+            ) : (
+              <TouchableOpacity onPress={handleSendPhoneOTP}>
+                <Text
+                  style={{
+                    textAlign: "center",
+                    color: "#1A3C5E",
+                    marginTop: 5,
+                  }}
+                >
+                  Resend Phone OTP
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={styles.label}>Enter Phone OTP</Text>
+            <View style={styles.otpContainer}>
+              {phoneOtp.map((digit, index) => (
+                <TextInput
+                  key={index}
+                  ref={(ref) => {
+                    phoneInputs.current[index] = ref;
+                  }}
+                  style={styles.otpBox}
+                  keyboardType="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChangeText={(value) => handlePhoneOtpChange(value, index)}
+                  onKeyPress={({ nativeEvent }) =>
+                    handlePhoneOtpKeyPress(nativeEvent.key, index)
+                  }
+                />
+              ))}
+            </View>
 
             {/* Error */}
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -416,10 +544,7 @@ export default function Register() {
             </Text>
           </View>
         </ScrollView>
-        <Popup
-          message={popup}
-          onClose={() => setPopup("")}
-        />
+        <Popup message={popup} onClose={() => setPopup("")} />
       </KeyboardAvoidingView>
     </LinearGradient>
   );

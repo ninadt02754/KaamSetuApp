@@ -27,6 +27,42 @@ const upload = multer({ storage });
 const router = express.Router();
 
 let otpStore = {};
+let phoneOtpStore = {};
+
+// ================= SEND PHONE OTP =================
+router.post("/send-phone-otp", async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone || phone.length !== 10 || !/^[6-9]\d{9}$/.test(phone)) {
+      return res
+        .status(400)
+        .json({ message: "Enter a valid 10-digit Indian mobile number" });
+    }
+
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    phoneOtpStore[phone] = otp;
+
+    console.log("Phone OTP:", otp); // debug — remove in production
+
+    const apiKey = process.env.TWO_FACTOR_API_KEY;
+    const url = `https://2factor.in/API/V1/${apiKey}/SMS/${phone}/${otp}/OTP1`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.Status !== "Success") {
+      return res
+        .status(500)
+        .json({ message: "Failed to send OTP. Try again." });
+    }
+
+    res.json({ message: "OTP sent to phone" });
+  } catch (err) {
+    console.error("Phone OTP error:", err);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+});
 
 // ================= SEND OTP =================
 router.post("/send-otp", async (req, res) => {
@@ -47,7 +83,7 @@ router.post("/send-otp", async (req, res) => {
 
     // 🚀 SEND TO RELAY SERVER
     const relayUrl =
-      process.env.OTP_RELAY_URL || "http://10.211.100.130:3000/send-otp";
+      process.env.OTP_RELAY_URL || "http://172.23.35.172:3000/send-otp";
     const relayRes = await fetch(relayUrl, {
       method: "POST",
       headers: {
@@ -71,8 +107,17 @@ router.post("/send-otp", async (req, res) => {
 // ================= REGISTER =================
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, phone, password, address, skills, role, otp } =
-      req.body;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      address,
+      skills,
+      role,
+      otp,
+      phoneOtp,
+    } = req.body;
 
     const existingUser = await User.findOne({
       $or: [{ email }, { phone }],
@@ -84,6 +129,10 @@ router.post("/register", async (req, res) => {
 
     if (otpStore[email] !== otp) {
       return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    if (phoneOtpStore[phone] !== phoneOtp) {
+      return res.status(400).json({ message: "Invalid Phone OTP" });
     }
 
     // Bug 9: Strong password validation
@@ -123,7 +172,7 @@ router.post("/register", async (req, res) => {
     await newUser.save();
 
     delete otpStore[email];
-
+    delete phoneOtpStore[phone];
     res.json({ message: "User registered successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message });
