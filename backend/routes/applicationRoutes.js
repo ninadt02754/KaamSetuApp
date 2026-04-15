@@ -258,4 +258,22 @@ router.delete("/delete/:applicationId", auth, async (req, res) => {
   }
 });
 
+
+// ── Worker history (past completed jobs) — for viewing worker profile ─────────
+router.get("/worker-history/:workerId", async (req, res) => {
+  try {
+    const applications = await Application.find({
+      workerId: req.params.workerId,
+      status: "completed",
+    })
+      .populate("jobId", "category description address completedAt")
+      .sort({ updatedAt: -1 })
+      .limit(20);
+
+    res.json({ applications });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

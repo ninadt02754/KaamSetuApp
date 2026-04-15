@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useState } from "react";
 import * as Notifications from "expo-notifications";  // ✅ ADDED
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // ✅ ADDED
 Notifications.setNotificationHandler({
@@ -49,6 +50,7 @@ function AuthGuard() {
 export default function RootLayout() {
   return (
     <>
+      <SafeAreaProvider>
       <AuthGuard />
 
       <Stack screenOptions={{ headerShown: false }}>
@@ -66,7 +68,8 @@ export default function RootLayout() {
         <Stack.Screen name="view-status/[jobId]" />
         <Stack.Screen name="referrals" />
         <Stack.Screen name="applications" />
-      </Stack>
+        </Stack>
+        </SafeAreaProvider>
     </>
   );
 }

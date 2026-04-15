@@ -130,6 +130,11 @@ export default function Register() {
         return;
       }
 
+      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#^()_\-+=])[A-Za-z0-9@$!%*?&#^()_\-+=]{8,}$/.test(password)) {
+        setError("Password must be 8+ chars with uppercase, lowercase, number & special char (@$!%*?&#)");
+        return;
+      }
+
       if (password !== confirm) {
         setError("Passwords do not match");
         return;
@@ -184,9 +189,9 @@ export default function Register() {
   };
 
   return (
-    <LinearGradient colors={["#2196F3", "#4a6cf7"]} style={{ flex: 1 }}>
+    <LinearGradient colors={["#0F1C2E", "#1A3C5E"]} style={{ flex: 1 }}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -225,7 +230,7 @@ export default function Register() {
                 <Ionicons
                   name={isWorker ? "checkbox" : "square-outline"}
                   size={22}
-                  color="#2196F3"
+                  color="#1A3C5E"
                 />
               </TouchableOpacity>
               <Text>Register as a Worker</Text>
@@ -262,7 +267,7 @@ export default function Register() {
 
             {/* Resend OTP */}
             {timer > 0 ? (
-              <Text style={{ textAlign: "center", marginTop: 5, color: "#2196F3" }}>
+              <Text style={{ textAlign: "center", marginTop: 5, color: "#1A3C5E" }}>
                 Resend OTP in {timer}s
               </Text>
             ) : (
@@ -270,7 +275,7 @@ export default function Register() {
                 <Text
                   style={{
                     textAlign: "center",
-                    color: "#2196F3",
+                    color: "#1A3C5E",
                     marginTop: 5,
                   }}
                 >
@@ -338,7 +343,7 @@ export default function Register() {
                       style={[
                         styles.tag,
                         selectedTags.includes(item) && {
-                          backgroundColor: "#2196F3",
+                          backgroundColor: "#1A3C5E",
                         },
                       ]}
                       onPress={() => addTag(item)}
@@ -399,7 +404,7 @@ export default function Register() {
             {/* Register */}
             <TouchableOpacity onPress={handleRegister}>
               <LinearGradient
-                colors={["#2196F3", "#2196F3"]}
+                colors={["#1A3C5E", "#2A5298"]}
                 style={styles.button}
               >
                 <Text style={styles.buttonText}>Register</Text>
@@ -559,7 +564,7 @@ const styles = StyleSheet.create({
 
   tag: {
     flexDirection: "row",
-    backgroundColor: "#2196F3",
+    backgroundColor: "#1A3C5E",
     padding: 6,
     borderRadius: 10,
     marginRight: 5,
@@ -608,7 +613,7 @@ const styles = StyleSheet.create({
   },
 
   activeRole: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "#1A3C5E",
   },
 
   // popup: {
@@ -616,7 +621,7 @@ const styles = StyleSheet.create({
   //   top: "40%",
   //   left: 20,
   //   right: 20,
-  //   backgroundColor: "#2196F3",
+  //   backgroundColor: "#1A3C5E",
   //   padding: 20,
   //   borderRadius: 15,
   //   alignItems: "center",
@@ -635,7 +640,7 @@ const styles = StyleSheet.create({
   // },
 
   // popupBox: {
-  //   backgroundColor: "#2196F3",
+  //   backgroundColor: "#1A3C5E",
   //   padding: 20,
   //   borderRadius: 15,
   //   width: "80%",

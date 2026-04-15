@@ -45,3 +45,6 @@ app-example
 /android
 
 backend/.env
+backend/node_modules/
+node_modules/
+backend/uploads/

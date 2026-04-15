@@ -50,8 +50,6 @@
 //   }
 // }
 
-
-
 {
   "expo": {
     "name": "KaamSetuApp",
@@ -67,6 +65,7 @@
     },
     "android": {
       "package": "com.kaamsetu.app",
+      "softwareKeyboardLayoutMode": "pan",
       "googleServicesFile": "./google-services.json",
       "versionCode": 1,
       "adaptiveIcon": {

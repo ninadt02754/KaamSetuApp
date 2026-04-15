@@ -6,21 +6,31 @@ const jobSchema = new mongoose.Schema(
     category: { type: String, required: true },
     description: { type: String, required: true },
     address: { type: String, required: true },
+
     minBudget: { type: Number },
     maxBudget: { type: Number },
     noBudget: { type: Boolean, default: false },
+
     startDate: { type: Date, required: true },
     endDate: { type: Date },
+
+    // 🔥 ADD THESE
+    startTime: { type: Date },
+    endTime: { type: Date },
+
     referrals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Referral" }],
+
     status: {
       type: String,
-      enum: ["pending", "in-progress", "completed"],
+      enum: ["pending", "in-progress", "completed", "cancelled"],
       default: "pending",
     },
+
+    completedAt: { type: Date },
+    cancelledAt: { type: Date },
   },
   { timestamps: true },
 );
 
-// ✅ THIS IS THE CRITICAL LINE
 const Job = mongoose.model("Job", jobSchema);
 export default Job;

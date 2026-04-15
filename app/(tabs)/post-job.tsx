@@ -1,25 +1,565 @@
+// import { Ionicons } from "@expo/vector-icons";
+// import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ Added
+// import DateTimePicker from "@react-native-community/datetimepicker";
+// import { Picker } from "@react-native-picker/picker";
+// import { LinearGradient } from "expo-linear-gradient";
+// import { useRouter } from "expo-router"; // ✅ Added
+// import { useState } from "react";
+// import {
+//   Alert,
+//   KeyboardAvoidingView,
+//   Platform,
+//   ScrollView,
+//   StatusBar,
+//   StyleSheet,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   View,
+// } from "react-native";
+// import { SafeAreaView } from "react-native-safe-area-context";
+// import { API_BASE } from "../../constants/Config"; // ✅ Added
+
+// import Popup from "../../components/Popup";
+
+// import { KColors as Colors, Spacing } from "../../constants/kaamsetuTheme";
+
+// export default function PostJob() {
+//   const router = useRouter();
+//   const [category, setCategory] = useState("");
+//   const [customCategory, setCustomCategory] = useState("");
+//   const [description, setDescription] = useState("");
+
+//   const [date, setDate] = useState(new Date());
+//   const [showPicker, setShowPicker] = useState(false);
+
+//   const [durationType, setDurationType] = useState("one-day");
+
+//   const [endDate, setEndDate] = useState(new Date());
+//   const [showEndPicker, setShowEndPicker] = useState(false);
+
+//   const [startTime, setStartTime] = useState(new Date());
+//   const [endTime, setEndTime] = useState(new Date());
+
+//   const [showStartPicker, setShowStartPicker] = useState(false);
+//   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+
+//   const [noBudget, setNoBudget] = useState(false);
+//   const [minBudget, setMinBudget] = useState("");
+//   const [maxBudget, setMaxBudget] = useState("");
+
+//   const [address, setAddress] = useState("");
+//   const [error, setError] = useState("");
+
+//   const [popup, setPopup] = useState("");
+//   const [popupType, setPopupType] = useState<"normal" | "error">("normal");
+
+//   const categories = [
+//     "Cleaning",
+//     "Cooking",
+//     "Plumber",
+//     "Electrician",
+//     "Babysitting",
+//     "Laundry",
+//     "Gardening",
+//     "Driver",
+//     "Carpenter",
+//     "Painter",
+//     "Other",
+//   ];
+
+//   const today = new Date();
+//   today.setHours(0, 0, 0, 0);
+
+//   // HANDLERS
+//   const handleDateChange = (_: any, d: any) => {
+//     setShowPicker(false);
+//     if (d) setDate(d);
+//   };
+
+//   const handleEndDateChange = (_: any, d: any) => {
+//     setShowEndPicker(false);
+//     if (d) setEndDate(d);
+//   };
+
+//   const handleStartTimeChange = (_: any, t: any) => {
+//     setShowStartPicker(false);
+//     if (t) setStartTime(t);
+//   };
+
+//   const handleEndTimeChange = (_: any, t: any) => {
+//     setShowEndTimePicker(false);
+//     if (t) setEndTime(t);
+//   };
+
+//   // VALIDATION
+//   const validateForm = () => {
+//     if (!category) return (setError("Select category"), false);
+//     if (category === "Other" && !customCategory.trim())
+//       return (setError("Enter custom category"), false);
+//     if (!description.trim()) return (setError("Enter description"), false);
+//     if (!date) return (setError("Select start date"), false);
+//     if (durationType === "multiple-days") {
+//       if (!endDate) return (setError("Select end date"), false);
+//       if (endDate < date)
+//         return (setError("End date cannot be before start date"), false);
+//     }
+//     if (!noBudget && (!minBudget || !maxBudget))
+//       return (setError("Enter budget"), false);
+//     if (!noBudget && Number(minBudget) > Number(maxBudget))
+//       return (setError("Min budget > Max budget"), false);
+//     if (!address.trim()) return (setError("Enter address"), false);
+//     if (endTime <= startTime)
+//       return (setError("End time must be after start time"), false);
+
+//     setError("");
+//     return true;
+//   };
+
+//   // ✅ NEW: API Handler
+//   const handlePostJob = async () => {
+//     if (!validateForm()) return;
+
+//     try {
+//       // 1. Get logged in user info
+//       const userData = await AsyncStorage.getItem("user");
+//       if (!userData) {
+//         Alert.alert("Error", "Please login again.");
+//         return;
+//       }
+//       const user = JSON.parse(userData);
+
+//       // 2. Prepare data for backend
+//       const payload = {
+//         posterId: user._id,
+//         category: category === "Other" ? customCategory : category,
+//         description,
+//         startDate: date,
+//         endDate: durationType === "multiple-days" ? endDate : null,
+//         durationType,
+//         startTime,
+//         endTime,
+//         noBudget,
+//         minBudget: noBudget ? 0 : Number(minBudget),
+//         maxBudget: noBudget ? 0 : Number(maxBudget),
+//         address,
+//       };
+//       const token = await AsyncStorage.getItem("token");
+
+//       console.log("TOKEN:", token);
+//       console.log("URL:", `${API_BASE}/jobs`);
+
+//       const response = await fetch(`${API_BASE}/jobs/create`, {
+//         method: "POST",
+//         headers: {
+//           "Content-Type": "application/json",
+//           Authorization: `Bearer ${token}`,
+//         },
+//         body: JSON.stringify(payload),
+//       });
+
+//       const result = await response.json(); // ✅ ONLY THIS
+
+//       console.log("RESPONSE:", result);
+
+//       if (response.ok) {
+//         setPopup("Job posted successfully 🎉");
+
+//         setTimeout(() => {
+//           router.push("/account");
+//         }, 1200);
+//       } else {
+//         Alert.alert("Failed", result.message || "Could not save job.");
+//       }
+//     } catch (err) {
+//       console.error(err);
+//       Alert.alert(
+//         "Network Error",
+//         "Check if the server is running and your IP is correct.",
+//       );
+//     }
+//   };
+
+//   return (
+//     <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+//       <LinearGradient colors={["#0F1C2E", "#1A3C5E"]} style={{ flex: 1 }}>
+//         <StatusBar barStyle="light-content" />
+//         <KeyboardAvoidingView
+//           behavior={Platform.OS === "ios" ? "padding" : "height"}
+//           style={{ flex: 1 }}
+//         >
+//           <ScrollView
+//             contentContainerStyle={{ padding: 20 }}
+//             keyboardShouldPersistTaps="handled"
+//           >
+//             {/* TOP */}
+//             <Text style={styles.logo}>KaamSetu</Text>
+//             <Text style={styles.subtitle}>Post a Job Easily</Text>
+
+//             {/* MAIN CARD */}
+//             <View style={styles.card}>
+//               <Text style={styles.title}>Post New Job</Text>
+
+//               {/* Category */}
+//               <Text style={styles.label}>Category *</Text>
+//               <View style={styles.pickerContainer}>
+//                 <Picker
+//                   selectedValue={category}
+//                   onValueChange={setCategory}
+//                   style={{ color: category ? "#000" : "#999" }}
+//                 >
+//                   <Picker.Item label="Select category" value="" color="#999" />
+//                   {categories.map((item, i) => (
+//                     <Picker.Item key={i} label={item} value={item} />
+//                   ))}
+//                 </Picker>
+//               </View>
+
+//               {category === "Other" && (
+//                 <View style={styles.inputContainer}>
+//                   <Ionicons
+//                     name="create-outline"
+//                     size={20}
+//                     color={Colors.primary}
+//                   />
+//                   <TextInput
+//                     placeholder="Custom category"
+//                     style={styles.inputFlex}
+//                     value={customCategory}
+//                     onChangeText={setCustomCategory}
+//                   />
+//                 </View>
+//               )}
+
+//               <Text style={styles.label}>Description *</Text>
+//               <View style={styles.inputContainer}>
+//                 <Ionicons
+//                   name="document-text-outline"
+//                   size={20}
+//                   color={Colors.primary}
+//                 />
+//                 <TextInput
+//                   style={styles.inputFlex}
+//                   value={description}
+//                   onChangeText={setDescription}
+//                   placeholder="Describe job"
+//                 />
+//               </View>
+
+//               <Text style={styles.label}>Start Date *</Text>
+//               <TouchableOpacity onPress={() => setShowPicker(true)}>
+//                 <View style={styles.inputContainer}>
+//                   <Ionicons
+//                     name="calendar-outline"
+//                     size={20}
+//                     color={Colors.primary}
+//                   />
+//                   <Text style={{ marginLeft: 10 }}>{date.toDateString()}</Text>
+//                 </View>
+//               </TouchableOpacity>
+
+//               {showPicker && (
+//                 <DateTimePicker
+//                   value={date}
+//                   mode="date"
+//                   minimumDate={today}
+//                   onChange={handleDateChange}
+//                 />
+//               )}
+
+//               <Text style={styles.label}>Duration</Text>
+//               <View style={styles.durationContainer}>
+//                 {["one-day", "multiple-days"].map((type) => (
+//                   <TouchableOpacity
+//                     key={type}
+//                     style={[
+//                       styles.durationButton,
+//                       durationType === type && styles.durationSelected,
+//                     ]}
+//                     onPress={() => setDurationType(type)}
+//                   >
+//                     <Text
+//                       style={[
+//                         styles.durationText,
+//                         durationType === type && { color: Colors.white },
+//                       ]}
+//                     >
+//                       {type === "one-day" ? "One Day" : "Multiple Days"}
+//                     </Text>
+//                   </TouchableOpacity>
+//                 ))}
+//               </View>
+
+//               {durationType === "multiple-days" && (
+//                 <>
+//                   <Text style={styles.label}>End Date *</Text>
+//                   <TouchableOpacity onPress={() => setShowEndPicker(true)}>
+//                     <View style={styles.inputContainer}>
+//                       <Ionicons
+//                         name="calendar-outline"
+//                         size={20}
+//                         color={Colors.primary}
+//                       />
+//                       <Text style={{ marginLeft: 10 }}>
+//                         {endDate.toDateString()}
+//                       </Text>
+//                     </View>
+//                   </TouchableOpacity>
+//                   {showEndPicker && (
+//                     <DateTimePicker
+//                       value={endDate}
+//                       mode="date"
+//                       onChange={handleEndDateChange}
+//                     />
+//                   )}
+//                 </>
+//               )}
+
+//               <Text style={styles.label}>Preferred Time *</Text>
+//               <TouchableOpacity onPress={() => setShowStartPicker(true)}>
+//                 <View style={styles.inputContainer}>
+//                   <Ionicons
+//                     name="play-circle-outline"
+//                     size={20}
+//                     color={Colors.primary}
+//                   />
+//                   <Text style={{ marginLeft: 10 }}>
+//                     {startTime.toLocaleTimeString()}
+//                   </Text>
+//                 </View>
+//               </TouchableOpacity>
+
+//               {showStartPicker && (
+//                 <DateTimePicker
+//                   value={startTime}
+//                   mode="time"
+//                   onChange={handleStartTimeChange}
+//                 />
+//               )}
+
+//               <TouchableOpacity onPress={() => setShowEndTimePicker(true)}>
+//                 <View style={styles.inputContainer}>
+//                   <Ionicons
+//                     name="stop-circle-outline"
+//                     size={20}
+//                     color={Colors.primary}
+//                   />
+//                   <Text style={{ marginLeft: 10 }}>
+//                     {endTime.toLocaleTimeString()}
+//                   </Text>
+//                 </View>
+//               </TouchableOpacity>
+
+//               {showEndTimePicker && (
+//                 <DateTimePicker
+//                   value={endTime}
+//                   mode="time"
+//                   onChange={handleEndTimeChange}
+//                 />
+//               )}
+
+//               <Text style={styles.label}>Budget *</Text>
+//               <TouchableOpacity
+//                 style={styles.checkboxRow}
+//                 onPress={() => setNoBudget(!noBudget)}
+//               >
+//                 <View style={styles.checkbox}>
+//                   {noBudget && <View style={styles.checkboxInner} />}
+//                 </View>
+//                 <Text>No Budget / Negotiable</Text>
+//               </TouchableOpacity>
+
+//               {!noBudget && (
+//                 <>
+//                   <View style={styles.inputContainer}>
+//                     <Ionicons
+//                       name="cash-outline"
+//                       size={20}
+//                       color={Colors.primary}
+//                     />
+//                     <TextInput
+//                       placeholder="Min Budget"
+//                       keyboardType="numeric"
+//                       style={styles.inputFlex}
+//                       value={minBudget}
+//                       onChangeText={(text) =>
+//                         setMinBudget(text.replace(/[^0-9]/g, ""))
+//                       }
+//                     />
+//                   </View>
+//                   <View style={styles.inputContainer}>
+//                     <Ionicons
+//                       name="cash-outline"
+//                       size={20}
+//                       color={Colors.primary}
+//                     />
+//                     <TextInput
+//                       placeholder="Max Budget"
+//                       keyboardType="numeric"
+//                       style={styles.inputFlex}
+//                       value={maxBudget}
+//                       onChangeText={(text) =>
+//                         setMaxBudget(text.replace(/[^0-9]/g, ""))
+//                       }
+//                     />
+//                   </View>
+//                 </>
+//               )}
+
+//               <Text style={styles.label}>Address *</Text>
+//               <View style={styles.inputContainer}>
+//                 <Ionicons
+//                   name="location-outline"
+//                   size={20}
+//                   color={Colors.primary}
+//                 />
+//                 <TextInput
+//                   placeholder="Enter job location"
+//                   style={styles.inputFlex}
+//                   value={address}
+//                   onChangeText={setAddress}
+//                 />
+//               </View>
+
+//               {error ? <Text style={styles.error}>{error}</Text> : null}
+
+//               <TouchableOpacity style={styles.button} onPress={handlePostJob}>
+//                 <Text style={styles.buttonText}>Post Job Now</Text>
+//               </TouchableOpacity>
+
+//               <View style={{ height: 40 }} />
+//             </View>
+//           </ScrollView>
+//           <Popup message={popup} onClose={() => setPopup("")} />
+//         </KeyboardAvoidingView>
+//       </LinearGradient>
+//     </SafeAreaView>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: { padding: Spacing.md, backgroundColor: "#3399F3" },
+//   header: {
+//     backgroundColor: Colors.primary,
+//     padding: 14,
+//     alignItems: "center",
+//   },
+//   headerTitle: { color: Colors.white, fontSize: 20, fontWeight: "bold" },
+//   title: {
+//     fontSize: 20,
+//     fontWeight: "bold",
+//     textAlign: "center",
+//     marginBottom: 10,
+//     color: Colors.textPrimary,
+//   },
+//   label: { marginTop: 12, fontWeight: "600", color: Colors.textSecondary },
+//   inputContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     backgroundColor: Colors.primaryPale,
+//     padding: 12,
+//     borderRadius: 10,
+//     marginTop: 10,
+//   },
+//   inputFlex: { flex: 1, marginLeft: 10 },
+//   button: {
+//     backgroundColor: "#1A3C5E",
+//     padding: 16,
+//     borderRadius: 12,
+//     marginTop: 20,
+//     shadowColor: "#1A3C5E",
+//     shadowOffset: { width: 0, height: 3 },
+//     shadowOpacity: 0.3,
+//     shadowRadius: 6,
+//     elevation: 4,
+//   },
+//   buttonText: {
+//     color: "#fff",
+//     textAlign: "center",
+//     fontWeight: "bold",
+//     fontSize: 16,
+//   },
+//   error: { color: "red", textAlign: "center", marginTop: 10 },
+//   durationContainer: { flexDirection: "row", marginTop: 10, gap: 10 },
+//   durationButton: {
+//     flex: 1,
+//     padding: 12,
+//     borderWidth: 1,
+//     borderColor: Colors.primaryPale,
+//     borderRadius: 12,
+//     alignItems: "center",
+//   },
+//   durationSelected: { backgroundColor: Colors.primary },
+//   durationText: { color: "#333", fontWeight: "500" },
+//   checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+//   checkbox: {
+//     width: 22,
+//     height: 22,
+//     borderWidth: 2,
+//     borderColor: Colors.primary,
+//     marginRight: 10,
+//     borderRadius: 4,
+//   },
+//   checkboxInner: {
+//     width: 12,
+//     height: 12,
+//     backgroundColor: Colors.primary,
+//     margin: 3,
+//   },
+//   pickerContainer: {
+//     backgroundColor: Colors.primaryPale,
+//     borderRadius: 10,
+//     borderWidth: 1,
+//     borderColor: "#ddd",
+//     marginTop: 6,
+//     paddingHorizontal: 5,
+//   },
+
+//   logo: {
+//     fontSize: 32,
+//     fontWeight: "bold",
+//     textAlign: "center",
+//     color: "#fff",
+//   },
+
+//   subtitle: {
+//     textAlign: "center",
+//     color: "#eee",
+//     marginBottom: 20,
+//   },
+
+//   card: {
+//     backgroundColor: Colors.white,
+//     padding: 20,
+//     borderRadius: 20,
+//     borderColor: Colors.cardBorder,
+//   },
+// });
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ Added
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Picker } from "@react-native-picker/picker";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router"; // ✅ Added
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-import { Base_Url ,API_BASE} from "../../constants/Config"; // ✅ Added
+import { SafeAreaView } from "react-native-safe-area-context";
+import { API_BASE } from "../../constants/Config";
 
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import Popup from "../../components/Popup";
-
-import { KColors as Colors, Spacing } from "../../constants/kaamsetuTheme";
 
 export default function PostJob() {
   const router = useRouter();
@@ -47,10 +587,30 @@ export default function PostJob() {
 
   const [address, setAddress] = useState("");
   const [error, setError] = useState("");
-  
+
   const [popup, setPopup] = useState("");
   const [popupType, setPopupType] = useState<"normal" | "error">("normal");
-
+  const [isPosting, setIsPosting] = useState(false);
+  const resetForm = () => {
+    setCategory("");
+    setCustomCategory("");
+    setDescription("");
+    setDate(new Date());
+    setEndDate(new Date());
+    setStartTime(new Date());
+    setEndTime(new Date());
+    setDurationType("one-day");
+    setNoBudget(false);
+    setMinBudget("");
+    setMaxBudget("");
+    setAddress("");
+    setError("");
+  };
+  useFocusEffect(
+    useCallback(() => {
+      resetForm();
+    }, []),
+  );
   const categories = [
     "Cleaning",
     "Cooking",
@@ -68,7 +628,6 @@ export default function PostJob() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // HANDLERS
   const handleDateChange = (_: any, d: any) => {
     setShowPicker(false);
     if (d) setDate(d);
@@ -89,7 +648,6 @@ export default function PostJob() {
     if (t) setEndTime(t);
   };
 
-  // VALIDATION
   const validateForm = () => {
     if (!category) return (setError("Select category"), false);
     if (category === "Other" && !customCategory.trim())
@@ -113,12 +671,12 @@ export default function PostJob() {
     return true;
   };
 
-  // ✅ NEW: API Handler
   const handlePostJob = async () => {
     if (!validateForm()) return;
+    if (isPosting) return;
+    setIsPosting(true);
 
     try {
-      // 1. Get logged in user info
       const userData = await AsyncStorage.getItem("user");
       if (!userData) {
         Alert.alert("Error", "Please login again.");
@@ -126,7 +684,6 @@ export default function PostJob() {
       }
       const user = JSON.parse(userData);
 
-      // 2. Prepare data for backend
       const payload = {
         posterId: user._id,
         category: category === "Other" ? customCategory : category,
@@ -141,35 +698,33 @@ export default function PostJob() {
         maxBudget: noBudget ? 0 : Number(maxBudget),
         address,
       };
-        const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem("token");
 
-console.log("TOKEN:", token);
-console.log("URL:", `${API_BASE}/jobs`);
+      const response = await fetch(`${API_BASE}/jobs/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-const response = await fetch(`${API_BASE}/jobs/create`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  },
-  body: JSON.stringify(payload),
-});
-
-const result = await response.json();   // ✅ ONLY THIS
-
-console.log("RESPONSE:", result);
+      const result = await response.json();
 
       if (response.ok) {
         setPopup("Job posted successfully 🎉");
-
+        // ✅ RESET BUTTON STATE
+        setIsPosting(false);
         setTimeout(() => {
-          router.push("/account");
+          router.push("/");
         }, 1200);
       } else {
+        setIsPosting(false); // 🔥 ADD THIS
         Alert.alert("Failed", result.message || "Could not save job.");
       }
     } catch (err) {
       console.error(err);
+      setIsPosting(false); // 🔥 ADD THIS
       Alert.alert(
         "Network Error",
         "Check if the server is running and your IP is correct.",
@@ -178,270 +733,325 @@ console.log("RESPONSE:", result);
   };
 
   return (
-  <LinearGradient colors={["#3399F3", "#3399F3"]} style={{ flex: 1 }}>
-    <StatusBar barStyle="light-content" />
-
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-
-      {/* TOP */}
-      <Text style={styles.logo}>KaamSetu</Text>
-      <Text style={styles.subtitle}>Post a Job Easily</Text>
-
-      {/* MAIN CARD */}
-      <View style={styles.card}>
-
-        <Text style={styles.title}>Post New Job</Text>
-
-        {/* Category */}
-        <Text style={styles.label}>Category *</Text>
-        <View style={styles.pickerContainer}>
-          <Picker
-            selectedValue={category}
-            onValueChange={setCategory}
-            style={{ color: category ? "#000" : "#999" }}
+    /**
+     * KEY FIXES:
+     * 1. edges={[]} on SafeAreaView — removes the top safe area inset so
+     *    the gradient fills right up to the status bar edge, no white gap.
+     * 2. backgroundColor="#0F2D55" on SafeAreaView — even if any inset
+     *    shows, it will be the same dark navy, invisible.
+     * 3. Gradient colors changed to match account screen exactly.
+     * 4. paddingTop: 44 added to ScrollView so content clears the status bar.
+     */
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F2D55" }} edges={[]}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#0F2D55"
+        translucent={false}
+      />
+      <LinearGradient
+        colors={["#0F2D55", "#1A4880", "#1E5799"]}
+        style={{ flex: 1 }}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
           >
-            <Picker.Item label="Select category" value="" color="#999" />
-            {categories.map((item, i) => (
-              <Picker.Item key={i} label={item} value={item} />
-            ))}
-          </Picker>
-        </View>
+            {/* TOP */}
+            <Text style={styles.logo}>KaamSetu</Text>
+            <Text style={styles.subtitle}>Post a Job Easily</Text>
 
-        {category === "Other" && (
-          <View style={styles.inputContainer}>
-            <Ionicons name="create-outline" size={20} color={Colors.primary} />
-            <TextInput
-              placeholder="Custom category"
-              style={styles.inputFlex}
-              value={customCategory}
-              onChangeText={setCustomCategory}
-            />
-          </View>
-        )}
+            {/* MAIN CARD — floating white card */}
+            <View style={styles.card}>
+              <Text style={styles.title}>Post New Job</Text>
 
-        <Text style={styles.label}>Description *</Text>
-        <View style={styles.inputContainer}>
-          <Ionicons
-            name="document-text-outline"
-            size={20}
-            color={Colors.primary}
-          />
-          <TextInput
-            style={styles.inputFlex}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Describe job"
-          />
-        </View>
+              {/* Category */}
+              <Text style={styles.label}>Category *</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={category}
+                  onValueChange={setCategory}
+                  style={{ color: category ? "#000" : "#999" }}
+                >
+                  <Picker.Item label="Select category" value="" color="#999" />
+                  {categories.map((item, i) => (
+                    <Picker.Item key={i} label={item} value={item} />
+                  ))}
+                </Picker>
+              </View>
 
-        <Text style={styles.label}>Start Date *</Text>
-        <TouchableOpacity onPress={() => setShowPicker(true)}>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="calendar-outline"
-              size={20}
-              color={Colors.primary}
-            />
-            <Text style={{ marginLeft: 10 }}>{date.toDateString()}</Text>
-          </View>
-        </TouchableOpacity>
+              {category === "Other" && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="create-outline" size={20} color="#1A4880" />
+                  <TextInput
+                    placeholder="Custom category"
+                    style={styles.inputFlex}
+                    value={customCategory}
+                    onChangeText={setCustomCategory}
+                  />
+                </View>
+              )}
 
-        {showPicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            minimumDate={today}
-            onChange={handleDateChange}
-          />
-        )}
-
-        <Text style={styles.label}>Duration</Text>
-        <View style={styles.durationContainer}>
-          {["one-day", "multiple-days"].map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.durationButton,
-                durationType === type && styles.durationSelected,
-              ]}
-              onPress={() => setDurationType(type)}
-            >
-              <Text
-                style={[
-                  styles.durationText,
-                  durationType === type && { color: Colors.white },
-                ]}
-              >
-                {type === "one-day" ? "One Day" : "Multiple Days"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {durationType === "multiple-days" && (
-          <>
-            <Text style={styles.label}>End Date *</Text>
-            <TouchableOpacity onPress={() => setShowEndPicker(true)}>
+              <Text style={styles.label}>Description *</Text>
               <View style={styles.inputContainer}>
                 <Ionicons
-                  name="calendar-outline"
+                  name="document-text-outline"
                   size={20}
-                  color={Colors.primary}
+                  color="#1A4880"
                 />
-                <Text style={{ marginLeft: 10 }}>{endDate.toDateString()}</Text>
+                <TextInput
+                  style={styles.inputFlex}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Describe job"
+                />
               </View>
-            </TouchableOpacity>
-            {showEndPicker && (
-              <DateTimePicker
-                value={endDate}
-                mode="date"
-                onChange={handleEndDateChange}
-              />
-            )}
-          </>
-        )}
 
-        <Text style={styles.label}>Preferred Time *</Text>
-        <TouchableOpacity onPress={() => setShowStartPicker(true)}>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="play-circle-outline"
-              size={20}
-              color={Colors.primary}
-            />
-            <Text style={{ marginLeft: 10 }}>
-              {startTime.toLocaleTimeString()}
-            </Text>
-          </View>
-        </TouchableOpacity>
+              <Text style={styles.label}>Start Date *</Text>
+              <TouchableOpacity onPress={() => setShowPicker(true)}>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="calendar-outline" size={20} color="#1A4880" />
+                  <Text style={{ marginLeft: 10 }}>{date.toDateString()}</Text>
+                </View>
+              </TouchableOpacity>
 
-        {showStartPicker && (
-          <DateTimePicker
-            value={startTime}
-            mode="time"
-            onChange={handleStartTimeChange}
-          />
-        )}
+              {showPicker && (
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  minimumDate={today}
+                  onChange={handleDateChange}
+                />
+              )}
 
-        <TouchableOpacity onPress={() => setShowEndTimePicker(true)}>
-          <View style={styles.inputContainer}>
-            <Ionicons
-              name="stop-circle-outline"
-              size={20}
-              color={Colors.primary}
-            />
-            <Text style={{ marginLeft: 10 }}>
-              {endTime.toLocaleTimeString()}
-            </Text>
-          </View>
-        </TouchableOpacity>
+              <Text style={styles.label}>Duration</Text>
+              <View style={styles.durationContainer}>
+                {["one-day", "multiple-days"].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.durationButton,
+                      durationType === type && styles.durationSelected,
+                    ]}
+                    onPress={() => setDurationType(type)}
+                  >
+                    <Text
+                      style={[
+                        styles.durationText,
+                        durationType === type && { color: "#fff" },
+                      ]}
+                    >
+                      {type === "one-day" ? "One Day" : "Multiple Days"}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-        {showEndTimePicker && (
-          <DateTimePicker
-            value={endTime}
-            mode="time"
-            onChange={handleEndTimeChange}
-          />
-        )}
+              {durationType === "multiple-days" && (
+                <>
+                  <Text style={styles.label}>End Date *</Text>
+                  <TouchableOpacity onPress={() => setShowEndPicker(true)}>
+                    <View style={styles.inputContainer}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={20}
+                        color="#1A4880"
+                      />
+                      <Text style={{ marginLeft: 10 }}>
+                        {endDate.toDateString()}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  {showEndPicker && (
+                    <DateTimePicker
+                      value={endDate}
+                      mode="date"
+                      onChange={handleEndDateChange}
+                    />
+                  )}
+                </>
+              )}
 
-        <Text style={styles.label}>Budget *</Text>
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => setNoBudget(!noBudget)}
-        >
-          <View style={styles.checkbox}>
-            {noBudget && <View style={styles.checkboxInner} />}
-          </View>
-          <Text>No Budget / Negotiable</Text>
-        </TouchableOpacity>
+              <Text style={styles.label}>Preferred Time *</Text>
+              <TouchableOpacity onPress={() => setShowStartPicker(true)}>
+                <View style={styles.inputContainer}>
+                  <Ionicons
+                    name="play-circle-outline"
+                    size={20}
+                    color="#1A4880"
+                  />
+                  <Text style={{ marginLeft: 10 }}>
+                    {startTime.toLocaleTimeString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
 
-        {!noBudget && (
-          <>
-            <View style={styles.inputContainer}>
-              <Ionicons name="cash-outline" size={20} color={Colors.primary} />
-              <TextInput
-                placeholder="Min Budget"
-                keyboardType="numeric"
-                style={styles.inputFlex}
-                value={minBudget}
-                onChangeText={(text) =>
-                  setMinBudget(text.replace(/[^0-9]/g, ""))
-                }
-              />
+              {showStartPicker && (
+                <DateTimePicker
+                  value={startTime}
+                  mode="time"
+                  onChange={handleStartTimeChange}
+                />
+              )}
+
+              <TouchableOpacity onPress={() => setShowEndTimePicker(true)}>
+                <View style={styles.inputContainer}>
+                  <Ionicons
+                    name="stop-circle-outline"
+                    size={20}
+                    color="#1A4880"
+                  />
+                  <Text style={{ marginLeft: 10 }}>
+                    {endTime.toLocaleTimeString()}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {showEndTimePicker && (
+                <DateTimePicker
+                  value={endTime}
+                  mode="time"
+                  onChange={handleEndTimeChange}
+                />
+              )}
+
+              <Text style={styles.label}>Budget *</Text>
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => setNoBudget(!noBudget)}
+              >
+                <View style={styles.checkbox}>
+                  {noBudget && <View style={styles.checkboxInner} />}
+                </View>
+                <Text>No Budget / Negotiable</Text>
+              </TouchableOpacity>
+
+              {!noBudget && (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="cash-outline" size={20} color="#1A4880" />
+                    <TextInput
+                      placeholder="Min Budget"
+                      keyboardType="numeric"
+                      style={styles.inputFlex}
+                      value={minBudget}
+                      onChangeText={(text) =>
+                        setMinBudget(text.replace(/[^0-9]/g, ""))
+                      }
+                    />
+                  </View>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="cash-outline" size={20} color="#1A4880" />
+                    <TextInput
+                      placeholder="Max Budget"
+                      keyboardType="numeric"
+                      style={styles.inputFlex}
+                      value={maxBudget}
+                      onChangeText={(text) =>
+                        setMaxBudget(text.replace(/[^0-9]/g, ""))
+                      }
+                    />
+                  </View>
+                </>
+              )}
+
+              <Text style={styles.label}>Address *</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="location-outline" size={20} color="#1A4880" />
+                <TextInput
+                  placeholder="Enter job location"
+                  style={styles.inputFlex}
+                  value={address}
+                  onChangeText={setAddress}
+                />
+              </View>
+
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.button, isPosting && { opacity: 0.6 }]}
+                onPress={handlePostJob}
+                disabled={isPosting}
+              >
+                <Text style={styles.buttonText}>
+                  {isPosting ? "Posting..." : "Post Job Now"}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 40 }} />
             </View>
-            <View style={styles.inputContainer}>
-              <Ionicons name="cash-outline" size={20} color={Colors.primary} />
-              <TextInput
-                placeholder="Max Budget"
-                keyboardType="numeric"
-                style={styles.inputFlex}
-                value={maxBudget}
-                onChangeText={(text) =>
-                  setMaxBudget(text.replace(/[^0-9]/g, ""))
-                }
-              />
-            </View>
-          </>
-        )}
-
-        <Text style={styles.label}>Address *</Text>
-        <View style={styles.inputContainer}>
-          <Ionicons name="location-outline" size={20} color={Colors.primary} />
-          <TextInput
-            placeholder="Enter job location"
-            style={styles.inputFlex}
-            value={address}
-            onChangeText={setAddress}
-          />
-        </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <TouchableOpacity style={styles.button} onPress={handlePostJob}>
-          <Text style={styles.buttonText}>Post Job Now</Text>
-        </TouchableOpacity>
-
-          <View style={{ height: 40 }} />
-          </View>
-      </ScrollView>
-      <Popup
-        message={popup}
-        onClose={() => setPopup("")}
-      />
-    </LinearGradient>
+          </ScrollView>
+          <Popup message={popup} onClose={() => setPopup("")} />
+        </KeyboardAvoidingView>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: Spacing.md, backgroundColor: "#3399F3" },
-  header: {
-    backgroundColor: Colors.primary,
-    padding: 14,
-    alignItems: "center",
+  scrollContent: {
+    padding: 20,
+    // paddingTop pushes content below status bar since we use edges={[]}
+    paddingTop: Platform.OS === "ios" ? 56 : 44,
   },
-  headerTitle: { color: Colors.white, fontSize: 20, fontWeight: "bold" },
+  logo: {
+    fontSize: 32,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#fff",
+  },
+  subtitle: {
+    textAlign: "center",
+    color: "#eee",
+    marginBottom: 20,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    borderRadius: 20,
+    // shadow gives the floating look
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 10,
+  },
   title: {
-  fontSize: 20,
-  fontWeight: "bold",
-  textAlign: "center",
-  marginBottom: 10,
-  color: Colors.textPrimary,
-},
-  label: { marginTop: 12, fontWeight: "600", color: Colors.textSecondary },
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    marginBottom: 10,
+    color: "#0F2040",
+  },
+  label: {
+    marginTop: 12,
+    fontWeight: "600",
+    color: "#3A5A82",
+  },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.primaryPale,
+    backgroundColor: "#F0F5FF",
     padding: 12,
     borderRadius: 10,
     marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#D5E3F7",
   },
   inputFlex: { flex: 1, marginLeft: 10 },
   button: {
-    backgroundColor: "#3399F3",
+    backgroundColor: "#1A4880",
     padding: 16,
     borderRadius: 12,
     marginTop: 20,
+    shadowColor: "#0F2D55",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   buttonText: {
     color: "#fff",
@@ -455,53 +1065,33 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
     borderWidth: 1,
-    borderColor: Colors.primaryPale,
+    borderColor: "#D5E3F7",
     borderRadius: 12,
     alignItems: "center",
   },
-  durationSelected: { backgroundColor: Colors.primary },
-  durationText: { color: "#333" , fontWeight: "500" },
+  durationSelected: { backgroundColor: "#1A4880" },
+  durationText: { color: "#333", fontWeight: "500" },
   checkboxRow: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   checkbox: {
     width: 22,
     height: 22,
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: "#1A4880",
     marginRight: 10,
     borderRadius: 4,
   },
   checkboxInner: {
     width: 12,
     height: 12,
-    backgroundColor: Colors.primary,
+    backgroundColor: "#1A4880",
     margin: 3,
   },
   pickerContainer: {
-  backgroundColor: Colors.primaryPale,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: "#ddd",
-  marginTop: 6,
-  paddingHorizontal: 5,
+    backgroundColor: "#F0F5FF",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D5E3F7",
+    marginTop: 6,
+    paddingHorizontal: 5,
   },
-  
-  logo: {
-  fontSize: 32,
-  fontWeight: "bold",
-  textAlign: "center",
-  color: "#fff",
-},
-
-subtitle: {
-  textAlign: "center",
-  color: "#eee",
-  marginBottom: 20,
-},
-
-card: {
-  backgroundColor: Colors.white,
-  padding: 20,
-  borderRadius: 20,
-  borderColor: Colors.cardBorder,
-},
 });

@@ -9,6 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import Popup from "../../components/Popup";
 
@@ -154,7 +157,9 @@ export default function ForgotPassword() {
   };
 
   return (
-    <LinearGradient colors={["#2196F3", "#4a6cf7"]} style={styles.container}>
+    <LinearGradient colors={["#1A3C5E", "#4a6cf7"]} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, justifyContent: "center" }} keyboardShouldPersistTaps="handled">
       <Text style={styles.logo}>KaamSetu</Text>
       <Text style={styles.subtitle}>Reset your password securely</Text>
 
@@ -266,7 +271,7 @@ export default function ForgotPassword() {
 
         {/* Button */}
         <TouchableOpacity onPress={handleReset}>
-          <LinearGradient colors={["#2196F3", "#2196F3"]} style={styles.button}>
+          <LinearGradient colors={["#1A3C5E", "#1A3C5E"]} style={styles.button}>
             <Text style={styles.buttonText}>Reset Password</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -282,7 +287,9 @@ export default function ForgotPassword() {
         message={popup}
         onClose={() => setPopup("")}
       />
-    </LinearGradient>
+    </ScrollView>
+    </KeyboardAvoidingView>
+  </LinearGradient>
   );
 }
 
@@ -383,13 +390,13 @@ const styles = StyleSheet.create({
   timerText: {
     textAlign: "center",
     marginTop: 5,
-    color: "#2196F3",
+    color: "#1A3C5E",
   },
 
   resendText: {
     textAlign: "center",
     marginTop: 5,
-    color: "#2196F3",
+    color: "#1A3C5E",
   },
 
   label: {

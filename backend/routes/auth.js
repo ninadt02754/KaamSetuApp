@@ -45,8 +45,10 @@ router.post("/send-otp", async (req, res) => {
 
     console.log("OTP:", otp); // debug
 
-    // 🚀 SEND TO YOUR PC (relay server)
-    const relayRes = await fetch("http://172.27.16.252:3000/send-otp", {
+    // 🚀 SEND TO RELAY SERVER
+    const relayUrl =
+      process.env.OTP_RELAY_URL || "http://10.211.100.130:3000/send-otp";
+    const relayRes = await fetch(relayUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,6 +84,16 @@ router.post("/register", async (req, res) => {
 
     if (otpStore[email] !== otp) {
       return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // Bug 9: Strong password validation
+    const strongPwdRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/;
+    if (!strongPwdRegex.test(password)) {
+      return res.status(400).json({
+        message:
+          "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -316,25 +328,6 @@ router.put(
   },
 );
 
-router.get("/me", async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: "No token" });
-
-    const token = authHeader.split(" ")[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    const user = await User.findById(decoded.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
-
-    res.json({ user });
-  } catch (err) {
-    res.status(401).json({ message: "Invalid token" });
-  }
-});
-
-
-
 router.get("/me", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
@@ -349,7 +342,8 @@ router.get("/me", auth, async (req, res) => {
 router.post("/save-token", auth, async (req, res) => {
   try {
     const { pushToken } = req.body;
-    if (!pushToken) return res.status(400).json({ message: "pushToken is required" });
+    if (!pushToken)
+      return res.status(400).json({ message: "pushToken is required" });
     await User.findByIdAndUpdate(req.user.id, { pushToken });
     res.json({ message: "Push token saved successfully" });
   } catch (err) {
@@ -367,5 +361,34 @@ router.post("/clear-token", auth, async (req, res) => {
   }
 });
 
+// UPDATE PASSWORD
+router.post("/update-password", auth, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword)
+      return res.status(400).json({ message: "Both passwords are required" });
+
+    const strongPwdRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/;
+    if (!strongPwdRegex.test(newPassword))
+      return res.status(400).json({
+        message:
+          "Password must be at least 8 characters with uppercase, lowercase, number and special character",
+      });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch)
+      return res.status(400).json({ message: "Old password is incorrect" });
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // export default router;
 export default router;
