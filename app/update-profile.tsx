@@ -750,19 +750,36 @@ export default function UpdateProfileScreen() {
     }
   };
 
+  // ── Name / Address modal state ───────────────────────────────────────────
+  const [nameModalVisible, setNameModalVisible] = useState(false);
+  const [addressModalVisible, setAddressModalVisible] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftAddress, setDraftAddress] = useState("");
+
+  const openNameModal = () => {
+    setDraftName(name);
+    setNameModalVisible(true);
+  };
+  const openAddressModal = () => {
+    setDraftAddress(address);
+    setAddressModalVisible(true);
+  };
+
   // ── Bug 8: Password update state ─────────────────────────────────────────
   const [pwdModalVisible, setPwdModalVisible] = useState(false);
-  const [oldPassword, setOldPassword]         = useState("");
-  const [newPassword, setNewPassword]         = useState("");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [pwdLoading, setPwdLoading]           = useState(false);
-  const [showOld, setShowOld]                 = useState(false);
-  const [showNew, setShowNew]                 = useState(false);
-  const [showConfirm, setShowConfirm]         = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Bug 9: Strong password validator
   const strongPwd = (p: string) =>
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/.test(p);
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_\-+=])[A-Za-z\d@$!%*?&#^()_\-+=]{8,}$/.test(
+      p,
+    );
 
   const handleUpdatePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
@@ -772,7 +789,7 @@ export default function UpdateProfileScreen() {
     if (!strongPwd(newPassword)) {
       Alert.alert(
         "Weak Password",
-        "Password must be at least 8 characters with uppercase, lowercase, number and special character (@$!%*?&#)."
+        "Password must be at least 8 characters with uppercase, lowercase, number and special character (@$!%*?&#).",
       );
       return;
     }
@@ -809,7 +826,8 @@ export default function UpdateProfileScreen() {
   };
 
   // ─── Avatar URI ────────────────────────────────────────────────────────────
-  const avatarUri = image || (profileImage ? `${BASE_URL}${profileImage}` : null);
+  const avatarUri =
+    image || (profileImage ? `${BASE_URL}${profileImage}` : null);
 
   return (
     <View style={styles.root}>
@@ -881,15 +899,14 @@ export default function UpdateProfileScreen() {
       {/* ── Scrollable Content ────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         style={styles.kvFlex}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? HEADER_HEIGHT : 0}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="always"
           keyboardDismissMode="none"
           showsVerticalScrollIndicator={false}
-          style={styles.scrollStyle}
           nestedScrollEnabled={true}
         >
           {/* ── Update Password Button (Bug 8) ──────────────────────── */}
@@ -918,20 +935,48 @@ export default function UpdateProfileScreen() {
           <View style={styles.card}>
             <SectionHeader title="Personal Information" icon="person-outline" />
             <View style={styles.divider} />
-            <InputField
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your full name"
-              icon="person-outline"
-            />
-            <InputField
-              label="Address"
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Your city / locality"
-              icon="location-outline"
-            />
+
+            {/* Name row */}
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={openNameModal}
+              activeOpacity={0.7}
+            >
+              <View style={styles.infoRowLeft}>
+                <View style={styles.infoRowIconWrap}>
+                  <Ionicons name="person-outline" size={15} color={P.accentBlue} />
+                </View>
+                <View>
+                  <Text style={styles.infoRowLabel}>Full Name</Text>
+                  <Text style={styles.infoRowValue} numberOfLines={1}>
+                    {name || "Tap to set your name"}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={P.textMuted} />
+            </TouchableOpacity>
+
+            <View style={styles.infoRowDivider} />
+
+            {/* Address row */}
+            <TouchableOpacity
+              style={styles.infoRow}
+              onPress={openAddressModal}
+              activeOpacity={0.7}
+            >
+              <View style={styles.infoRowLeft}>
+                <View style={styles.infoRowIconWrap}>
+                  <Ionicons name="location-outline" size={15} color={P.accentBlue} />
+                </View>
+                <View>
+                  <Text style={styles.infoRowLabel}>Address</Text>
+                  <Text style={styles.infoRowValue} numberOfLines={1}>
+                    {address || "Tap to set your address"}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={P.textMuted} />
+            </TouchableOpacity>
           </View>
 
           {/* ── Worker Skills Card ──────────────────────────────────────── */}
@@ -1020,7 +1065,7 @@ export default function UpdateProfileScreen() {
                 <TouchableOpacity
                   style={[
                     styles.addTagBtn,
-                    tagInput.trim() && styles.addTagBtnActive,
+                    !!tagInput.trim() && styles.addTagBtnActive,
                   ]}
                   onPress={() => addTag(tagInput)}
                   disabled={!tagInput.trim()}
@@ -1061,6 +1106,147 @@ export default function UpdateProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* ── Edit Name Modal ──────────────────────────────────────────────── */}
+      <Modal
+        visible={nameModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setNameModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <LinearGradient
+              colors={[P.gradientTop, P.gradientMid]}
+              style={styles.modalHeader}
+            >
+              <Ionicons name="person-outline" size={28} color={P.white} />
+              <Text style={styles.modalTitle}>Edit Name</Text>
+              <Text style={styles.modalSubtitle}>Update your full name</Text>
+            </LinearGradient>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalFieldLabel}>Full Name</Text>
+              <View style={styles.modalInputRow}>
+                <Ionicons
+                  name="person-outline"
+                  size={16}
+                  color={P.textMuted}
+                  style={{ marginRight: 8 }}
+                />
+                <TextInput
+                  style={styles.modalTextInput}
+                  placeholder="Enter your full name"
+                  placeholderTextColor={P.textMuted}
+                  value={draftName}
+                  onChangeText={setDraftName}
+                  autoCapitalize="words"
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (draftName.trim()) {
+                      setName(draftName.trim());
+                      setNameModalVisible(false);
+                    }
+                  }}
+                />
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setNameModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalConfirmBtn}
+                  onPress={() => {
+                    if (draftName.trim()) {
+                      setName(draftName.trim());
+                    }
+                    setNameModalVisible(false);
+                  }}
+                >
+                  <LinearGradient
+                    colors={[P.gradientTop, P.gradientMid]}
+                    style={styles.modalConfirmGradient}
+                  >
+                    <Text style={styles.modalConfirmText}>Save</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Edit Address Modal ───────────────────────────────────────────── */}
+      <Modal
+        visible={addressModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAddressModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <LinearGradient
+              colors={[P.gradientTop, P.gradientMid]}
+              style={styles.modalHeader}
+            >
+              <Ionicons name="location-outline" size={28} color={P.white} />
+              <Text style={styles.modalTitle}>Edit Address</Text>
+              <Text style={styles.modalSubtitle}>Update your city / locality</Text>
+            </LinearGradient>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalFieldLabel}>Address</Text>
+              <View style={[styles.modalInputRow, { alignItems: "flex-start", minHeight: 90, paddingTop: 10 }]}>
+                <Ionicons
+                  name="location-outline"
+                  size={16}
+                  color={P.textMuted}
+                  style={{ marginRight: 8, marginTop: 2 }}
+                />
+                <TextInput
+                  style={[styles.modalTextInput, { textAlignVertical: "top", minHeight: 70 }]}
+                  placeholder="Your city / locality"
+                  placeholderTextColor={P.textMuted}
+                  value={draftAddress}
+                  onChangeText={setDraftAddress}
+                  autoCapitalize="sentences"
+                  multiline
+                  autoFocus
+                  returnKeyType="done"
+                />
+              </View>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalCancelBtn}
+                  onPress={() => setAddressModalVisible(false)}
+                >
+                  <Text style={styles.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.modalConfirmBtn}
+                  onPress={() => {
+                    setAddress(draftAddress.trim());
+                    setAddressModalVisible(false);
+                  }}
+                >
+                  <LinearGradient
+                    colors={[P.gradientTop, P.gradientMid]}
+                    style={styles.modalConfirmGradient}
+                  >
+                    <Text style={styles.modalConfirmText}>Save</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Update Password Modal (Bug 8 & 9) ─────────────────────────── */}
       <Modal
         visible={pwdModalVisible}
@@ -1068,26 +1254,78 @@ export default function UpdateProfileScreen() {
         animationType="slide"
         onRequestClose={() => setPwdModalVisible(false)}
       >
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", padding: 20 }}>
-          <View style={{ backgroundColor: "#fff", borderRadius: 20, overflow: "hidden" }}>
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.5)",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 20,
+              overflow: "hidden",
+            }}
+          >
             <LinearGradient
               colors={[P.gradientTop, P.gradientMid]}
               style={{ padding: 20, alignItems: "center" }}
             >
               <Ionicons name="lock-closed-outline" size={28} color={P.white} />
-              <Text style={{ color: P.white, fontSize: 18, fontWeight: "700", marginTop: 8 }}>
+              <Text
+                style={{
+                  color: P.white,
+                  fontSize: 18,
+                  fontWeight: "700",
+                  marginTop: 8,
+                }}
+              >
                 Update Password
               </Text>
-              <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, marginTop: 4, textAlign: "center" }}>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 12,
+                  marginTop: 4,
+                  textAlign: "center",
+                }}
+              >
                 Min 8 chars • Uppercase • Lowercase • Number • Special char
               </Text>
             </LinearGradient>
 
             <View style={{ padding: 20 }}>
               {/* Old Password */}
-              <Text style={{ color: P.textMuted, fontSize: 12, fontWeight: "600", marginBottom: 6 }}>Current Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0F5FF", borderRadius: 10, paddingHorizontal: 12, marginBottom: 14, borderWidth: 1, borderColor: "#D5E3F7" }}>
-                <Ionicons name="lock-closed-outline" size={16} color={P.textMuted} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  color: P.textMuted,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  marginBottom: 6,
+                }}
+              >
+                Current Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#F0F5FF",
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  marginBottom: 14,
+                  borderWidth: 1,
+                  borderColor: "#D5E3F7",
+                }}
+              >
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={16}
+                  color={P.textMuted}
+                  style={{ marginRight: 8 }}
+                />
                 <TextInput
                   style={{ flex: 1, height: 44, color: "#111" }}
                   placeholder="Enter current password"
@@ -1098,14 +1336,49 @@ export default function UpdateProfileScreen() {
                   autoCapitalize="none"
                 />
                 <TouchableOpacity onPress={() => setShowOld(!showOld)}>
-                  <Ionicons name={showOld ? "eye-off-outline" : "eye-outline"} size={18} color={P.textMuted} />
+                  <Ionicons
+                    name={showOld ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={P.textMuted}
+                  />
                 </TouchableOpacity>
               </View>
 
               {/* New Password */}
-              <Text style={{ color: P.textMuted, fontSize: 12, fontWeight: "600", marginBottom: 6 }}>New Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0F5FF", borderRadius: 10, paddingHorizontal: 12, marginBottom: 6, borderWidth: 1, borderColor: newPassword && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#]).{8,}$/.test(newPassword) ? "#F87171" : "#D5E3F7" }}>
-                <Ionicons name="key-outline" size={16} color={P.textMuted} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  color: P.textMuted,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  marginBottom: 6,
+                }}
+              >
+                New Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#F0F5FF",
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  marginBottom: 6,
+                  borderWidth: 1,
+                  borderColor:
+                    newPassword &&
+                      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#]).{8,}$/.test(
+                        newPassword,
+                      )
+                      ? "#F87171"
+                      : "#D5E3F7",
+                }}
+              >
+                <Ionicons
+                  name="key-outline"
+                  size={16}
+                  color={P.textMuted}
+                  style={{ marginRight: 8 }}
+                />
                 <TextInput
                   style={{ flex: 1, height: 44, color: "#111" }}
                   placeholder="Enter new password"
@@ -1116,19 +1389,57 @@ export default function UpdateProfileScreen() {
                   autoCapitalize="none"
                 />
                 <TouchableOpacity onPress={() => setShowNew(!showNew)}>
-                  <Ionicons name={showNew ? "eye-off-outline" : "eye-outline"} size={18} color={P.textMuted} />
+                  <Ionicons
+                    name={showNew ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={P.textMuted}
+                  />
                 </TouchableOpacity>
               </View>
-              {newPassword.length > 0 && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#]).{8,}$/.test(newPassword) && (
-                <Text style={{ color: "#EF4444", fontSize: 11, marginBottom: 10 }}>
-                  ⚠ Must have uppercase, lowercase, number & special char
-                </Text>
-              )}
+              {newPassword.length > 0 &&
+                !/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[@$!%*?&#]).{8,}$/.test(
+                  newPassword,
+                ) && (
+                  <Text
+                    style={{ color: "#EF4444", fontSize: 11, marginBottom: 10 }}
+                  >
+                    ⚠ Must have uppercase, lowercase, number & special char
+                  </Text>
+                )}
 
               {/* Confirm Password */}
-              <Text style={{ color: P.textMuted, fontSize: 12, fontWeight: "600", marginBottom: 6, marginTop: 4 }}>Confirm New Password</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F0F5FF", borderRadius: 10, paddingHorizontal: 12, marginBottom: 6, borderWidth: 1, borderColor: confirmPassword && confirmPassword !== newPassword ? "#F87171" : "#D5E3F7" }}>
-                <Ionicons name="key-outline" size={16} color={P.textMuted} style={{ marginRight: 8 }} />
+              <Text
+                style={{
+                  color: P.textMuted,
+                  fontSize: 12,
+                  fontWeight: "600",
+                  marginBottom: 6,
+                  marginTop: 4,
+                }}
+              >
+                Confirm New Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#F0F5FF",
+                  borderRadius: 10,
+                  paddingHorizontal: 12,
+                  marginBottom: 6,
+                  borderWidth: 1,
+                  borderColor:
+                    confirmPassword && confirmPassword !== newPassword
+                      ? "#F87171"
+                      : "#D5E3F7",
+                }}
+              >
+                <Ionicons
+                  name="key-outline"
+                  size={16}
+                  color={P.textMuted}
+                  style={{ marginRight: 8 }}
+                />
                 <TextInput
                   style={{ flex: 1, height: 44, color: "#111" }}
                   placeholder="Re-enter new password"
@@ -1139,22 +1450,43 @@ export default function UpdateProfileScreen() {
                   autoCapitalize="none"
                 />
                 <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-                  <Ionicons name={showConfirm ? "eye-off-outline" : "eye-outline"} size={18} color={P.textMuted} />
+                  <Ionicons
+                    name={showConfirm ? "eye-off-outline" : "eye-outline"}
+                    size={18}
+                    color={P.textMuted}
+                  />
                 </TouchableOpacity>
               </View>
-              {confirmPassword.length > 0 && confirmPassword !== newPassword && (
-                <Text style={{ color: "#EF4444", fontSize: 11, marginBottom: 8 }}>
-                  ⚠ Passwords do not match
-                </Text>
-              )}
+              {confirmPassword.length > 0 &&
+                confirmPassword !== newPassword && (
+                  <Text
+                    style={{ color: "#EF4444", fontSize: 11, marginBottom: 8 }}
+                  >
+                    ⚠ Passwords do not match
+                  </Text>
+                )}
 
               {/* Action buttons */}
               <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
                 <TouchableOpacity
-                  style={{ flex: 1, padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#D5E3F7", alignItems: "center" }}
-                  onPress={() => { setPwdModalVisible(false); setOldPassword(""); setNewPassword(""); setConfirmPassword(""); }}
+                  style={{
+                    flex: 1,
+                    padding: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: "#D5E3F7",
+                    alignItems: "center",
+                  }}
+                  onPress={() => {
+                    setPwdModalVisible(false);
+                    setOldPassword("");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
                 >
-                  <Text style={{ color: P.textMuted, fontWeight: "600" }}>Cancel</Text>
+                  <Text style={{ color: P.textMuted, fontWeight: "600" }}>
+                    Cancel
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, borderRadius: 12, overflow: "hidden" }}
@@ -1163,12 +1495,20 @@ export default function UpdateProfileScreen() {
                 >
                   <LinearGradient
                     colors={[P.gradientTop, P.gradientMid]}
-                    style={{ padding: 14, alignItems: "center", flexDirection: "row", justifyContent: "center" }}
+                    style={{
+                      padding: 14,
+                      alignItems: "center",
+                      flexDirection: "row",
+                      justifyContent: "center",
+                    }}
                   >
-                    {pwdLoading
-                      ? <ActivityIndicator color="#fff" size="small" />
-                      : <Text style={{ color: "#fff", fontWeight: "700" }}>Update</Text>
-                    }
+                    {pwdLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={{ color: "#fff", fontWeight: "700" }}>
+                        Update
+                      </Text>
+                    )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -1323,12 +1663,8 @@ const styles = StyleSheet.create({
   },
 
   // ── Scroll ────────────────────────────────────────────────────────────────
-  scrollStyle: {
-    marginTop: -CURVE_HEIGHT, // pull up under the curve
-  },
-
   scrollContent: {
-    paddingTop: HEADER_HEIGHT - CURVE_HEIGHT - 180,
+    paddingTop: 16,
     paddingHorizontal: 16,
     gap: 14,
   },
@@ -1502,6 +1838,148 @@ const styles = StyleSheet.create({
 
   addTagBtnActive: {
     backgroundColor: P.accentBlue,
+  },
+
+  // ── Info rows (tappable, inside Personal Info card) ──────────────────────
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+  },
+
+  infoRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 12,
+  },
+
+  infoRowIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#EAF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  infoRowLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: P.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+
+  infoRowValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: P.textDark,
+  },
+
+  infoRowDivider: {
+    height: 1,
+    backgroundColor: P.divider,
+    marginVertical: 2,
+  },
+
+  // ── Shared modal styles ───────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
+  },
+
+  modalSheet: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    overflow: "hidden",
+  },
+
+  modalHeader: {
+    padding: 20,
+    alignItems: "center",
+  },
+
+  modalTitle: {
+    color: P.white,
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+
+  modalSubtitle: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center",
+  },
+
+  modalBody: {
+    padding: 20,
+  },
+
+  modalFieldLabel: {
+    color: P.textMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
+  modalInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0F5FF",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "#D5E3F7",
+    marginBottom: 20,
+  },
+
+  modalTextInput: {
+    flex: 1,
+    height: 44,
+    color: P.textDark,
+    fontSize: 14,
+  },
+
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+  },
+
+  modalCancelBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D5E3F7",
+    alignItems: "center",
+  },
+
+  modalCancelText: {
+    color: P.textMuted,
+    fontWeight: "600",
+  },
+
+  modalConfirmBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+
+  modalConfirmGradient: {
+    padding: 14,
+    alignItems: "center",
+  },
+
+  modalConfirmText: {
+    color: "#fff",
+    fontWeight: "700",
   },
 
   // ── Save button ───────────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ const router = express.Router();
 // Called when worker clicks "Apply Now" on Live Jobs page
 router.post("/apply", auth, async (req, res) => {
   try {
-    const { jobId, expectedPay, preferredTime } = req.body;
+    const { jobId, expectedPay, preferredTime, remarks } = req.body;
 
     if (!jobId || !expectedPay || !preferredTime) {
       return res.status(400).json({
@@ -57,6 +57,7 @@ router.post("/apply", auth, async (req, res) => {
       workerId: req.user.id,
       expectedPay,
       preferredTime,
+      remarks: remarks || "",
       status: "pending",
       source: "direct",
     });
@@ -81,7 +82,7 @@ router.get("/job/:jobId", auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .populate("workerId", "name phone")
       .select(
-        "_id jobId workerId workerName workerPhone status source referrerId referralId createdAt",
+        "_id jobId workerId workerName workerPhone status source referrerId referralId createdAt expectedPay preferredTime remarks",
       );
 
     res.json(applications);
@@ -95,15 +96,16 @@ router.get("/job/:jobId", auth, async (req, res) => {
 router.get("/my-applications", auth, async (req, res) => {
   try {
     const applications = await Application.find({ workerId: req.user.id })
-  .populate({
-    path: "jobId",
-    select: "category description address minBudget maxBudget status posterId userId",
-    populate: {
-      path: "posterId",
-      select: "_id name",
-    },
-  })
-  .sort({ createdAt: -1 });
+      .populate({
+        path: "jobId",
+        select:
+          "category description address minBudget maxBudget status posterId userId",
+        populate: {
+          path: "posterId",
+          select: "_id name",
+        },
+      })
+      .sort({ createdAt: -1 });
 
     res.json({ applications });
   } catch (err) {
@@ -257,7 +259,6 @@ router.delete("/delete/:applicationId", auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ── Worker history (past completed jobs) — for viewing worker profile ─────────
 router.get("/worker-history/:workerId", async (req, res) => {

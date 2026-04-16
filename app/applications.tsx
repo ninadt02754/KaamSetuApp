@@ -21,7 +21,7 @@
 //     Spacing,
 // } from "../constants/kaamsetuTheme";
 
-// const API_URL = "http://172.23.35.172:8030";
+// const API_URL = "http://172.17.61.86:8030";
 
 // function StarRatingInput({
 //   rating,
@@ -892,7 +892,7 @@ import {
 } from "react-native";
 import { KColors as Colors, Spacing } from "../constants/kaamsetuTheme";
 
-const API_URL = "http://172.23.35.172:8030";
+const API_URL = "http://172.17.61.86:8030";
 
 // ─── Avatar initials helper ───────────────────────────────────────────────────
 const AVATAR_COLORS = [
@@ -966,6 +966,10 @@ type ApplicationItem = {
   source?: "direct" | "referral";
   jobId?: string | { _id: string };
   createdAt?: string;
+  // ── New application detail fields ──
+  expectedPay?: string | number;
+  preferredTime?: string;
+  remarks?: string;
 };
 
 type ReferralItem = {
@@ -1041,6 +1045,14 @@ export default function ApplicationListScreen() {
     if (app.jobId && typeof app.jobId === "string") return app.jobId;
     return jobId || null;
   };
+
+  const getApplicationDetails = (app: ApplicationItem) => ({
+    expectedPay:
+      app.expectedPay ?? (app as any)?.applicationDetails?.expectedPay,
+    preferredTime:
+      app.preferredTime ?? (app as any)?.applicationDetails?.preferredTime,
+    remarks: app.remarks ?? (app as any)?.applicationDetails?.remarks,
+  });
 
   // ─── Data fetching ────────────────────────────────────────────────────────
   const fetchData = async () => {
@@ -1336,7 +1348,38 @@ export default function ApplicationListScreen() {
               ))}
             </View>
           )}
-
+          {/* Application details filled by worker */}
+          {(() => {
+            const { expectedPay, preferredTime, remarks } =
+              getApplicationDetails(app);
+            const hasAny = expectedPay || preferredTime || remarks;
+            if (!hasAny) return null;
+            return (
+              <View style={styles.appDetailsBox}>
+                <Text style={styles.appDetailsHeading}>
+                  Application Details
+                </Text>
+                {expectedPay ? (
+                  <View style={styles.appDetailRow}>
+                    <Text style={styles.appDetailKey}>💰 Expected Pay</Text>
+                    <Text style={styles.appDetailVal}>₹{expectedPay}</Text>
+                  </View>
+                ) : null}
+                {preferredTime ? (
+                  <View style={styles.appDetailRow}>
+                    <Text style={styles.appDetailKey}>🕐 Preferred Time</Text>
+                    <Text style={styles.appDetailVal}>{preferredTime}</Text>
+                  </View>
+                ) : null}
+                {remarks ? (
+                  <View style={styles.appDetailRow}>
+                    <Text style={styles.appDetailKey}>📝 Remarks</Text>
+                    <Text style={styles.appDetailVal}>{remarks}</Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })()}
           {/* View profile link */}
           {canOpenProfile && (
             <TouchableOpacity
@@ -1561,7 +1604,46 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f0f2f8",
   },
+  appDetailsBox: {
+    backgroundColor: "#f8f9fb",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#eef0f6",
+  },
 
+  appDetailsHeading: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: "#8891aa",
+    marginBottom: 4,
+  },
+
+  appDetailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+
+  appDetailKey: {
+    fontSize: 12.5,
+    fontWeight: "600",
+    color: "#7a8299",
+    flexShrink: 0,
+  },
+
+  appDetailVal: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#0D1B3E",
+    flex: 1,
+    textAlign: "right",
+  },
   centered: {
     flex: 1,
     justifyContent: "center",

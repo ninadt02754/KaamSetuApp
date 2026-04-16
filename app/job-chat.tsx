@@ -24,7 +24,7 @@
 //     Spacing,
 // } from "../constants/kaamsetuTheme";
 
-// const API_URL = "http://172.23.35.172:8030";
+// const API_URL = "http://172.17.61.86:8030";
 
 // type RawSender =
 //   | string
